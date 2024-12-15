@@ -34,8 +34,14 @@ struct Override {
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Config {
-    #[serde_as(as = "Vec<(_, _)>")]
-    overrides: HashMap<String, Override>,
+    #[serde_as(as = "Option<Vec<(_, _)>>")]
+    overrides: Option<HashMap<String, Override>>,
+
+    #[serde_as(as = "Option<Vec<(_, _)>>")]
+    overrides_windows: Option<HashMap<String, Override>>,
+
+    #[serde_as(as = "Option<Vec<(_, _)>>")]
+    overrides_unix: Option<HashMap<String, Override>>,
 }
 
 #[derive(Debug)]
@@ -127,9 +133,24 @@ fn apply_config(name: &str, info: &Info) -> Result<()> {
 
     let mut has_override = false;
     if let Some(straw_config) = &info.straw_config {
-        if straw_config.overrides.contains_key(name) {
+        let mut overrides: HashMap<String, Override> = HashMap::new();
+        if let Some(general_overrides) = &straw_config.overrides {
+            overrides.extend(general_overrides.clone());
+        }
+
+        #[cfg(windows)]
+        if let Some(windows_overrides) = &straw_config.overrides_windows {
+            overrides.extend(windows_overrides.clone());
+        }
+
+        #[cfg(unix)]
+        if let Some(unix_overrides) = &straw_config.overrides_unix {
+            overrides.extend(unix_overrides.clone());
+        }
+
+        if overrides.contains_key(name) {
             has_override = true;
-            let path_override = &straw_config.overrides[name];
+            let path_override = &overrides[name];
 
             let from = path_override.from.clone();
             let to = path_override.to.clone();
