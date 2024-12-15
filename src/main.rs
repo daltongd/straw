@@ -451,7 +451,28 @@ fn update_dotfiles(args: &Args, path: &PathBuf, remote: &str, branch: &str) -> R
 fn clone(url: &str, target_path: &PathBuf) -> Result<()> {
     let auth = auth_git2::GitAuthenticator::default();
     let auth = auth.add_default_ssh_keys();
-    auth.clone_repo(url, target_path)?;
+    // auth.clone_repo(url, target_path)?;
+
+    let git_config = git2::Config::open_default()?;
+    let mut repo_builder = git2::build::RepoBuilder::new();
+    let mut fetch_options = git2::FetchOptions::new();
+    let mut remote_callbacks = git2::RemoteCallbacks::new();
+
+    remote_callbacks.credentials(|_, _, _| {
+        let credentials = git2::Cred::ssh_key(
+            "git",
+            Some(Path::new("C:/Users/krzys/.ssh/id_ed25519.pub")),
+            Path::new("C:/Users/krzys/.ssh/id_ed25519"),
+            None,
+        )
+        .expect("Could not create credentials object");
+
+        Ok(credentials)
+    });
+    fetch_options.remote_callbacks(remote_callbacks);
+    repo_builder.fetch_options(fetch_options);
+
+    let mut _repo = repo_builder.clone(url, &target_path.join("../test"))?;
     Ok(())
 }
 
