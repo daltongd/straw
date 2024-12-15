@@ -1,9 +1,4 @@
-use std::{
-    collections::HashMap,
-    fs::{DirEntry, FileType, ReadDir},
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{collections::HashMap, fs::ReadDir, path::PathBuf, str::FromStr};
 
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -94,7 +89,7 @@ fn create_symlink(info: &Info, from: PathBuf, to: PathBuf) -> Result<()> {
             #[cfg(windows)]
             std::os::windows::fs::symlink_dir(from, to)?;
             #[cfg(unix)]
-            std::os::unix::fs::symlink(from, to);
+            std::os::unix::fs::symlink(from, to)?;
         }
         tracing::info!("\t\tCreated a directory link");
     } else if from.is_file() {
@@ -102,7 +97,7 @@ fn create_symlink(info: &Info, from: PathBuf, to: PathBuf) -> Result<()> {
             #[cfg(windows)]
             std::os::windows::fs::symlink_file(from, to)?;
             #[cfg(unix)]
-            std::os::unix::fs::symlink(from, to);
+            std::os::unix::fs::symlink(from, to)?;
         }
         tracing::info!("\t\tCreated a file link");
     } else if from.is_symlink() {
