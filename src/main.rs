@@ -1,7 +1,11 @@
-use std::{collections::HashMap, fs::ReadDir, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    fs::ReadDir,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use clap::Parser;
-use git2::{Cred, Repository};
 use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -189,14 +193,15 @@ fn apply_config(name: &str, info: &Info) -> Result<()> {
     Ok(())
 }
 
-fn update_dotfiles(dotfiles_path: &PathBuf) -> Result<()> {
+fn fetch<'a>(
+    repository: &'a git2::Repository,
+    remote: &'a mut git2::Remote,
+    refs: &[&str],
+) -> Result<git2::AnnotatedCommit<'a>> {
     // git sync
     let auth = auth_git2::GitAuthenticator::default();
     let auth = auth.add_default_ssh_keys();
 
-    let repository = Repository::open(dotfiles_path)?;
-    let mut remote = repository.find_remote("origin")?;
-    let branch = "main";
     let git_config = git2::Config::open_default()?;
     let mut cb = git2::RemoteCallbacks::new();
 
@@ -206,13 +211,13 @@ fn update_dotfiles(dotfiles_path: &PathBuf) -> Result<()> {
     cb.transfer_progress(|stats| {
         if stats.received_objects() == stats.total_objects() {
             tracing::info!(
-                "Resolving deltas {}/{}\r",
+                "Sync: Resolving deltas {}/{}\r",
                 stats.indexed_deltas(),
                 stats.total_deltas()
             );
         } else if stats.total_objects() > 0 {
             tracing::info!(
-                "Received {}/{} objects ({}) in {} bytes\r",
+                "Sync: Received {}/{} objects ({}) in {} bytes\r",
                 stats.received_objects(),
                 stats.total_objects(),
                 stats.indexed_objects(),
@@ -227,13 +232,13 @@ fn update_dotfiles(dotfiles_path: &PathBuf) -> Result<()> {
     // Always fetch all tags.
     // Perform a download and also update tips
     fo.download_tags(git2::AutotagOption::All);
-    println!("Fetching {} for repo", remote.name().unwrap());
-    remote.fetch(&[branch], Some(&mut fo), None)?;
+    tracing::info!("Sync: Fetching {} for .dotfiles", remote.name().unwrap());
+    remote.fetch(refs, Some(&mut fo), None)?;
 
     let stats = remote.stats();
     if stats.local_objects() > 0 {
-        println!(
-            "\rReceived {}/{} objects in {} bytes (used {} local \
+        tracing::info!(
+            "Sync: Received {}/{} objects in {} bytes (used {} local \
              objects)",
             stats.indexed_objects(),
             stats.total_objects(),
@@ -241,8 +246,8 @@ fn update_dotfiles(dotfiles_path: &PathBuf) -> Result<()> {
             stats.local_objects()
         );
     } else {
-        println!(
-            "\rReceived {}/{} objects in {} bytes",
+        tracing::info!(
+            "Sync: Received {}/{} objects in {} bytes",
             stats.indexed_objects(),
             stats.total_objects(),
             stats.received_bytes()
@@ -250,8 +255,155 @@ fn update_dotfiles(dotfiles_path: &PathBuf) -> Result<()> {
     }
 
     let fetch_head = repository.find_reference("FETCH_HEAD")?;
-    // repository.reference_to_annotated_commit(&fetch_head)?;
 
+    Ok(repository.reference_to_annotated_commit(&fetch_head)?)
+}
+
+fn fast_forward_merge(
+    repository: &git2::Repository,
+    local_branch: &mut git2::Reference,
+    remote_commit: &git2::AnnotatedCommit,
+) -> Result<()> {
+    let name = match local_branch.name() {
+        Some(s) => s.to_string(),
+        None => String::from_utf8_lossy(local_branch.name_bytes()).to_string(),
+    };
+    let msg = format!("Fast-forward: Setting {} to {}", name, remote_commit.id());
+    tracing::info!("Sync: {msg}");
+    local_branch.set_target(remote_commit.id(), &msg)?;
+    repository.set_head(&name)?;
+    repository.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
+    Ok(())
+}
+
+fn normal_merge(
+    repository: &git2::Repository,
+    local_commit: &git2::AnnotatedCommit,
+    remote_commit: &git2::AnnotatedCommit,
+) -> Result<git2::Oid> {
+    let local_tree = repository.find_commit(local_commit.id())?.tree()?;
+    let remote_tree = repository.find_commit(remote_commit.id())?.tree()?;
+    let ancestor_tree = repository
+        .find_commit(repository.merge_base(local_commit.id(), remote_commit.id())?)?
+        .tree()?;
+    let mut index = repository.merge_trees(&ancestor_tree, &local_tree, &remote_tree, None)?;
+
+    if index.has_conflicts() {
+        // TODO: return error instead?
+        repository.checkout_index(Some(&mut index), None)?;
+        return Err(StrawError::String(
+            "Merge conflicts detected. Manual intervention required.".into(),
+        ));
+    }
+
+    let result_tree = repository.find_tree(index.write_tree_to(repository)?)?;
+
+    // create merge commit
+    let message = format!("merge: {} into {}", remote_commit.id(), local_commit.id());
+    let signature = repository.signature()?;
+    let local_commit = repository.find_commit(local_commit.id())?;
+    let remote_commit = repository.find_commit(remote_commit.id())?;
+
+    let merge_commit = repository.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        &message,
+        &result_tree,
+        &[&local_commit, &remote_commit],
+    )?;
+
+    Ok(merge_commit)
+}
+
+fn merge(
+    repository: &git2::Repository,
+    fetch_commit: git2::AnnotatedCommit,
+    branch: &str,
+) -> Result<()> {
+    let analysis = repository.merge_analysis(&[&fetch_commit])?;
+    if analysis.0.is_fast_forward() {
+        tracing::info!("Sync: Performing a fast-forward merge");
+        let refs = format!("refs/heads/{branch}");
+        match repository.find_reference(&refs) {
+            Ok(mut refs) => fast_forward_merge(repository, &mut refs, &fetch_commit)?,
+            Err(_) => {
+                repository.reference(
+                    &refs,
+                    fetch_commit.id(),
+                    true,
+                    &format!("Setting {} to {}", branch, fetch_commit.id()),
+                )?;
+                repository.set_head(&refs)?;
+                repository.checkout_head(Some(
+                    git2::build::CheckoutBuilder::default()
+                        .allow_conflicts(true)
+                        .conflict_style_merge(true)
+                        .force(),
+                ))?;
+            }
+        }
+    } else if analysis.0.is_normal() {
+        tracing::info!("Sync: Performing merge");
+        let head_commit = repository.reference_to_annotated_commit(&repository.head()?)?;
+        normal_merge(repository, &head_commit, &fetch_commit)?;
+    } else {
+        tracing::info!("Sync: Already up-to-date")
+    }
+    Ok(())
+}
+
+fn commit_changes(path: &PathBuf, remote: &str, branch: &str) -> Result<()> {
+    tracing::info!("Sync: Committing local changes");
+    let repository = git2::Repository::open(path)?;
+
+    let mut index = repository.index()?;
+    index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
+    index.write()?;
+
+    let host = hostname::get()?;
+    let host = host.to_str().unwrap_or("unknown host");
+    let message = format!("sync: push changes from {host}");
+
+    let signature = repository.signature()?;
+    let parent_commit = repository.head()?.peel_to_commit()?;
+
+    let tree = repository.find_tree(index.write_tree()?)?;
+
+    let update_ref = if let Ok(_head) = repository.head() {
+        Some("HEAD")
+    } else {
+        None // no HEAD = first commit
+    };
+
+    let _commit = repository.commit(
+        update_ref,
+        &signature,
+        &signature,
+        &message,
+        &tree,
+        &[&parent_commit],
+    )?;
+
+    let mut remote = repository.find_remote(remote)?;
+
+    let auth = auth_git2::GitAuthenticator::default();
+    let auth = auth.add_default_ssh_keys();
+
+    let git_config = git2::Config::open_default()?;
+    let mut cb = git2::RemoteCallbacks::new();
+    cb.credentials(auth.credentials(&git_config));
+
+    auth.push(&repository, &mut remote, &[&format!("refs/heads/{branch}")])?;
+
+    Ok(())
+}
+
+fn update_dotfiles(path: &PathBuf, remote: &str, branch: &str) -> Result<()> {
+    let repository = git2::Repository::open(path)?;
+    let mut remote = repository.find_remote(remote)?;
+    let head = fetch(&repository, &mut remote, &[branch])?;
+    merge(&repository, head, branch)?;
     Ok(())
 }
 
@@ -287,7 +439,18 @@ fn main() -> Result<()> {
     let dotfiles_path: PathBuf = [home_dir, DOTFILES_DIR].iter().collect();
     let config_file_path: PathBuf = [home_dir, DOTFILES_DIR, CONFIG_FILE].iter().collect();
 
-    // update_dotfiles(&dotfiles_path)?;
+    // commit changes
+    match commit_changes(&dotfiles_path, "origin", "main") {
+        Ok(_) => tracing::info!("Sync: local changes to .dotfiles committed"),
+        Err(e) => tracing::error!(
+            "Sync: Failed to commit the local changes to .dotfiles with error: {e:?}"
+        ),
+    }
+    // update git repo
+    match update_dotfiles(&dotfiles_path, "origin", "main") {
+        Ok(_) => tracing::info!("Sync: .dotfiles updated"),
+        Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
+    }
 
     let mut overrides = HashMap::new();
     let mut ignores: Vec<String> = Vec::new();
