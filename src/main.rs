@@ -91,12 +91,18 @@ fn create_symlink(info: &Info, from: PathBuf, to: PathBuf) -> Result<()> {
     tracing::info!("\t    {from:?} -> {to:?}");
     if from.is_dir() {
         if !info.args.preview {
+            #[cfg(windows)]
             std::os::windows::fs::symlink_dir(from, to)?;
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(from, to);
         }
         tracing::info!("\t\tCreated a directory link");
     } else if from.is_file() {
         if !info.args.preview {
+            #[cfg(windows)]
             std::os::windows::fs::symlink_file(from, to)?;
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(from, to);
         }
         tracing::info!("\t\tCreated a file link");
     } else if from.is_symlink() {
