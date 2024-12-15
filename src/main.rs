@@ -539,7 +539,7 @@ fn main() -> Result<()> {
         }
 
         #[cfg(unix)]
-        if let Some(unix_overrides) = &straw_config.overrides_unix {
+        if let Some(unix_overrides) = &straw_config_parsed.overrides_unix {
             overrides.extend(unix_overrides.clone());
         }
 
