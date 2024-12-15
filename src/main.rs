@@ -42,6 +42,10 @@ struct Config {
 
     #[serde_as(as = "Option<Vec<(_, _)>>")]
     overrides_unix: Option<HashMap<String, Override>>,
+
+    ignores: Option<Vec<String>>,
+    ignores_windows: Option<Vec<String>>,
+    ignores_unix: Option<Vec<String>>,
 }
 
 #[derive(Debug)]
@@ -152,6 +156,29 @@ fn apply_config(name: &str, info: &Info) -> Result<()> {
         #[cfg(unix)]
         if let Some(unix_overrides) = &straw_config.overrides_unix {
             overrides.extend(unix_overrides.clone());
+        }
+
+        if let Some(ignores) = &straw_config.ignores {
+            if ignores.contains(&name.to_owned()) {
+                tracing::info!("Ignoring {name} (all platforms).");
+                return Ok(());
+            }
+        }
+
+        #[cfg(windows)]
+        if let Some(ignores) = &straw_config.ignores_windows {
+            if ignores.contains(&name.to_owned()) {
+                tracing::info!("Ignoring {name} (windows).");
+                return Ok(());
+            }
+        }
+
+        #[cfg(unix)]
+        if let Some(ignores) = &straw_config.ignores_unix {
+            if ignores.contains(&name.to_owned()) {
+                tracing::info!("Ignoring {name} (unix).");
+                return Ok(());
+            }
         }
 
         if overrides.contains_key(name) {
