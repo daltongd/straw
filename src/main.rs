@@ -37,8 +37,6 @@ enum Commands {
     Clone { url: String },
 }
 
-// TODO: repo config (remote, branch)
-// TODO: clone
 // TODO: adopt
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -47,9 +45,17 @@ struct Override {
     to: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct RepositoryConfig {
+    remote: String,
+    branch: String,
+}
+
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Config {
+    git: Option<RepositoryConfig>,
+
     #[serde_as(as = "Option<Vec<(_, _)>>")]
     overrides: Option<HashMap<String, Override>>,
 
@@ -375,7 +381,7 @@ fn merge(
 }
 
 /// NOTE: Returns `Ok(true)` if any files were committed and `Ok(false)` otherwise
-fn commit_changes(args: &Args, path: &PathBuf, remote: &str, branch: &str) -> Result<bool> {
+fn commit_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<bool> {
     tracing::info!("Sync: Committing local changes");
     let repository = git2::Repository::open(path)?;
 
@@ -422,7 +428,7 @@ fn commit_changes(args: &Args, path: &PathBuf, remote: &str, branch: &str) -> Re
         &[&parent_commit],
     )?;
 
-    let mut remote = repository.find_remote(remote)?;
+    let mut remote = repository.find_remote(&repo_config.remote)?;
 
     let auth = auth_git2::GitAuthenticator::default();
     let auth = auth.add_default_ssh_keys();
@@ -431,48 +437,40 @@ fn commit_changes(args: &Args, path: &PathBuf, remote: &str, branch: &str) -> Re
     let mut cb = git2::RemoteCallbacks::new();
     cb.credentials(auth.credentials(&git_config));
 
-    auth.push(&repository, &mut remote, &[&format!("refs/heads/{branch}")])?;
+    auth.push(
+        &repository,
+        &mut remote,
+        &[&format!("refs/heads/{}", repo_config.branch)],
+    )?;
 
     Ok(true)
 }
 
-fn update_dotfiles(args: &Args, path: &PathBuf, remote: &str, branch: &str) -> Result<()> {
-    tracing::info!("Sync: updating .dotfiles from {remote} {branch}");
+fn update_dotfiles(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<()> {
+    tracing::info!(
+        "Sync: updating .dotfiles from {} {}",
+        repo_config.remote,
+        repo_config.branch
+    );
     if args.preview {
         return Ok(());
     }
     let repository = git2::Repository::open(path)?;
-    let mut remote = repository.find_remote(remote)?;
-    let head = fetch(&repository, &mut remote, &[branch])?;
-    merge(&repository, head, branch)?;
+    let mut remote = repository.find_remote(&repo_config.remote)?;
+    let head = fetch(&repository, &mut remote, &[&repo_config.branch])?;
+    merge(&repository, head, &repo_config.branch)?;
     Ok(())
 }
 
-fn clone(url: &str, target_path: &PathBuf) -> Result<()> {
-    let auth = auth_git2::GitAuthenticator::default();
-    let auth = auth.add_default_ssh_keys();
-    // auth.clone_repo(url, target_path)?;
+fn clone(args: &Args, url: &str, target_path: &Path) -> Result<()> {
+    let display_path = target_path.display().to_string().replace("\\", "/");
+    tracing::info!("Clone: cloning {url} into {display_path}");
 
-    let git_config = git2::Config::open_default()?;
-    let mut repo_builder = git2::build::RepoBuilder::new();
-    let mut fetch_options = git2::FetchOptions::new();
-    let mut remote_callbacks = git2::RemoteCallbacks::new();
-
-    remote_callbacks.credentials(|_, _, _| {
-        let credentials = git2::Cred::ssh_key(
-            "git",
-            Some(Path::new("C:/Users/krzys/.ssh/id_ed25519.pub")),
-            Path::new("C:/Users/krzys/.ssh/id_ed25519"),
-            None,
-        )
-        .expect("Could not create credentials object");
-
-        Ok(credentials)
-    });
-    fetch_options.remote_callbacks(remote_callbacks);
-    repo_builder.fetch_options(fetch_options);
-
-    let mut _repo = repo_builder.clone(url, &target_path.join("../test"))?;
+    if !args.preview {
+        let auth = auth_git2::GitAuthenticator::default();
+        let auth = auth.add_default_ssh_keys();
+        auth.clone_repo(url, target_path.join("../test"))?;
+    }
     Ok(())
 }
 
@@ -513,8 +511,19 @@ fn main() -> Result<()> {
     let dotfiles_path: PathBuf = [home_dir, DOTFILES_DIR].iter().collect();
     let config_file_path: PathBuf = [home_dir, DOTFILES_DIR, CONFIG_FILE].iter().collect();
 
+    let mut repo_config = RepositoryConfig {
+        remote: String::from("origin"),
+        branch: String::from("main"),
+    };
+    if let Ok(config_file) = std::fs::read_to_string(&config_file_path) {
+        let config: Config = serde_json::from_str(config_file.as_str())?;
+        if let Some(git) = config.git {
+            repo_config = git;
+        }
+    }
+
     if let Some(Commands::Clone { url }) = &args.command {
-        match clone(url, &dotfiles_path) {
+        match clone(&args, url, &dotfiles_path) {
             Ok(_) => {
                 tracing::info!("Clone: successfully cloned {url} repository into ~/.dotfiles");
             }
@@ -524,7 +533,7 @@ fn main() -> Result<()> {
         }
     } else if args.sync {
         // commit changes
-        match commit_changes(&args, &dotfiles_path, "origin", "main") {
+        match commit_changes(&args, &dotfiles_path, &repo_config) {
             Ok(any_changes_committed) => {
                 if any_changes_committed {
                     tracing::info!("Sync: Done committing local changes to .dotfiles")
@@ -537,7 +546,7 @@ fn main() -> Result<()> {
             ),
         }
         // update git repo
-        match update_dotfiles(&args, &dotfiles_path, "origin", "main") {
+        match update_dotfiles(&args, &dotfiles_path, &repo_config) {
             Ok(_) => tracing::info!("Sync: .dotfiles updated"),
             Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
         }
