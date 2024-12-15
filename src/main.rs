@@ -469,7 +469,7 @@ fn clone(args: &Args, url: &str, target_path: &Path) -> Result<()> {
     if !args.preview {
         let auth = auth_git2::GitAuthenticator::default();
         let auth = auth.add_default_ssh_keys();
-        auth.clone_repo(url, target_path.join("../test"))?;
+        auth.clone_repo(url, target_path)?;
     }
     Ok(())
 }
