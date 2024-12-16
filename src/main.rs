@@ -194,7 +194,9 @@ fn apply_config(name: &str, info: &Info) -> Result<()> {
                 }
             })
             .into_owned();
-        tracing::info!("\t\tFound override:\t\t\t{from} -> {to}");
+        let display_from = from.replace("\\", "/");
+        let display_to = path_override.to.replace("\\", "/");
+        tracing::info!("\t\tFound override:\t\t\t{display_from} -> {display_to}");
 
         let to = PathBuf::from_str(to.as_str())
             .map_err(|e| StrawError::String(format!("Can't resolve path: {to:?}. {e:?}")))?;
@@ -428,6 +430,12 @@ fn commit_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -
         &[&parent_commit],
     )?;
 
+    Ok(true)
+}
+
+fn push_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<()> {
+    tracing::info!("Sync: Pushing local changes");
+    let repository = git2::Repository::open(path)?;
     let mut remote = repository.find_remote(&repo_config.remote)?;
 
     let auth = auth_git2::GitAuthenticator::default();
@@ -443,7 +451,7 @@ fn commit_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -
         &[&format!("refs/heads/{}", repo_config.branch)],
     )?;
 
-    Ok(true)
+    Ok(())
 }
 
 fn update_dotfiles(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<()> {
@@ -533,9 +541,11 @@ fn main() -> Result<()> {
         }
     } else if args.sync {
         // commit changes
+        let mut changes_committed = false;
         match commit_changes(&args, &dotfiles_path, &repo_config) {
             Ok(any_changes_committed) => {
                 if any_changes_committed {
+                    changes_committed = true;
                     tracing::info!("Sync: Done committing local changes to .dotfiles")
                 } else {
                     tracing::info!("Sync: No local changes to commit");
@@ -549,6 +559,14 @@ fn main() -> Result<()> {
         match update_dotfiles(&args, &dotfiles_path, &repo_config) {
             Ok(_) => tracing::info!("Sync: .dotfiles updated"),
             Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
+        }
+        if changes_committed {
+            match push_changes(&args, &dotfiles_path, &repo_config) {
+                Ok(_) => tracing::info!("Sync: local changes pushed to {}", repo_config.remote),
+                Err(e) => {
+                    tracing::error!("Sync: Failed to push the local changes with error: {e:?}")
+                }
+            }
         }
     }
 
