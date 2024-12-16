@@ -383,7 +383,7 @@ fn merge(
 }
 
 /// NOTE: Returns `Ok(true)` if any files were committed and `Ok(false)` otherwise
-fn commit_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<bool> {
+fn commit_changes(args: &Args, path: &PathBuf, _repo_config: &RepositoryConfig) -> Result<bool> {
     tracing::info!("Sync: Committing local changes");
     let repository = git2::Repository::open(path)?;
 
@@ -433,7 +433,7 @@ fn commit_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -
     Ok(true)
 }
 
-fn push_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<()> {
+fn push_changes(_args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<()> {
     tracing::info!("Sync: Pushing local changes");
     let repository = git2::Repository::open(path)?;
     let mut remote = repository.find_remote(&repo_config.remote)?;
