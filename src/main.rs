@@ -163,6 +163,16 @@ fn remove_symlink_if_exists(info: &Info, link_path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
+fn create_dir(dir: &Path) -> Result<()> {
+    if let Some(parent) = dir.parent() {
+        if !parent.exists() {
+            return create_dir(parent);
+        }
+    }
+
+    std::fs::create_dir(dir).map_err(StrawError::Io)
+}
+
 fn apply_config(name: &str, info: &Info) -> Result<()> {
     let config_path = &info.dotfiles_path;
     let config_path = config_path.join(name);
@@ -210,6 +220,13 @@ fn apply_config(name: &str, info: &Info) -> Result<()> {
 
         // could be false if the file wasn't successfully removed
         if !to.exists() || info.args.preview {
+            // check if the parent path exists
+            if let Some(parent) = to.parent() {
+                if !parent.exists() {
+                    create_dir(parent)?;
+                }
+            } // else - `to` is root, ignore
+
             let from_path: PathBuf = [info.home_dir, DOTFILES_DIR, name, from.as_str()]
                 .iter()
                 .collect();
