@@ -9,24 +9,16 @@ use clap::Parser;
 use regex::{Captures, Regex};
 use straw::{
     args::{Args, Commands},
-    config::{Config, Override},
+    git::RepositoryConfig,
     result::{Result, StrawError},
+    state::StateInfo,
+    straw_config::{Config, Override},
 };
 
 const DOTFILES_DIR: &str = ".dotfiles/";
 const CONFIG_FILE: &str = "config.json";
 
 // TODO: adopt
-
-#[derive(Debug)]
-struct StateInfo<'a> {
-    home_dir: &'a str,
-    dotfiles_path: PathBuf,
-    args: &'a Args,
-    env_var_regex: Regex,
-    overrides: HashMap<String, Override>,
-    ignores: Vec<String>,
-}
 
 fn fold_and_apply(name: &str, info: &StateInfo, from_dir: ReadDir, to: PathBuf) -> Result<()> {
     for item in from_dir {
@@ -57,68 +49,12 @@ fn fold_and_apply(name: &str, info: &StateInfo, from_dir: ReadDir, to: PathBuf) 
 
             tracing::info!("{name}: Creating symlink");
 
-            remove_symlink_if_exists(info, &to)?;
-            create_symlink(info, from, to)?;
+            straw::fs::remove_symlink_if_exists(info, &to)?;
+            straw::fs::create_symlink(info, from, to)?;
         }
     }
 
     Ok(())
-}
-
-fn create_symlink(info: &StateInfo, from: PathBuf, to: PathBuf) -> Result<()> {
-    let display_from = from.display().to_string().replace("\\", "/");
-    let display_to = to.display().to_string().replace("\\", "/");
-    if from.is_dir() {
-        if !info.args.preview {
-            #[cfg(windows)]
-            std::os::windows::fs::symlink_dir(from, to)?;
-            #[cfg(unix)]
-            std::os::unix::fs::symlink(from, to)?;
-        }
-        tracing::info!("\t\tCreated a directory link:\t{display_from} -> {display_to}");
-    } else if from.is_file() {
-        if !info.args.preview {
-            #[cfg(windows)]
-            std::os::windows::fs::symlink_file(from, to)?;
-            #[cfg(unix)]
-            std::os::unix::fs::symlink(from, to)?;
-        }
-        tracing::info!("\t\tCreated a file link:\t\t{display_from} -> {display_to}");
-    } else if from.is_symlink() {
-        return Err(StrawError::String(
-            "Linking symlink to a symlink is not supported at the moment.".into(),
-        ));
-    } else {
-        return Err(StrawError::String("Invalid path {from_path:?}".into()));
-    }
-
-    Ok(())
-}
-
-fn remove_symlink_if_exists(info: &StateInfo, link_path: &PathBuf) -> Result<()> {
-    if link_path.exists() && link_path.is_symlink() {
-        let display_path = link_path.display().to_string().replace("\\", "/");
-        tracing::info!("\t\tRemoving the existing link:\t{display_path}");
-        if !info.args.preview {
-            if link_path.is_dir() {
-                std::fs::remove_dir_all(link_path)?;
-            } else if link_path.is_file() {
-                std::fs::remove_file(link_path)?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn create_dir(dir: &Path) -> Result<()> {
-    if let Some(parent) = dir.parent() {
-        if !parent.exists() {
-            return create_dir(parent);
-        }
-    }
-
-    std::fs::create_dir(dir).map_err(StrawError::Io)
 }
 
 fn apply_config(name: &str, info: &StateInfo) -> Result<()> {
@@ -159,7 +95,7 @@ fn apply_config(name: &str, info: &StateInfo) -> Result<()> {
         let to = PathBuf::from_str(to.as_str())
             .map_err(|e| StrawError::String(format!("Can't resolve path: {to:?}. {e:?}")))?;
 
-        remove_symlink_if_exists(info, &to)?;
+        straw::fs::remove_symlink_if_exists(info, &to)?;
 
         if to.exists() && !to.is_symlink() {
             let to = to.display().to_string().replace("\\", "/");
@@ -171,20 +107,92 @@ fn apply_config(name: &str, info: &StateInfo) -> Result<()> {
             // check if the parent path exists
             if let Some(parent) = to.parent() {
                 if !parent.exists() {
-                    create_dir(parent)?;
+                    straw::fs::create_dir(parent)?;
                 }
             } // else - `to` is root, ignore
 
             let from_path: PathBuf = [info.home_dir, DOTFILES_DIR, name, from.as_str()]
                 .iter()
                 .collect();
-            create_symlink(info, from_path, to)?;
+            straw::fs::create_symlink(info, from_path, to)?;
         }
     } else {
         fold_and_apply(name, info, config_dir, PathBuf::from(info.home_dir))?;
     }
 
     Ok(())
+}
+
+fn find_home() -> Result<String> {
+    let home = home::home_dir().ok_or(StrawError::String(
+        "Couldn't determine the home directory path.".into(),
+    ))?;
+    let home_dir = home.as_os_str().to_str().ok_or(StrawError::String(
+        "Couldn't convert {home:?} to &str.".into(),
+    ))?;
+
+    let display_home = home_dir.replace("\\", "/");
+    tracing::info!("Found home directory: {display_home}");
+
+    Ok(home_dir.into())
+}
+
+fn resolve_repo_config(config_file_path: &Path) -> Result<RepositoryConfig> {
+    let mut repo_config = straw::git::RepositoryConfig {
+        remote: String::from("origin"),
+        branch: String::from("main"),
+    };
+
+    if let Ok(config_file) = std::fs::read_to_string(config_file_path) {
+        let config: Config = serde_json::from_str(config_file.as_str())?;
+        if let Some(git) = config.git {
+            repo_config = git;
+        }
+    }
+
+    Ok(repo_config)
+}
+
+fn resolve_straw_config(
+    config_file_path: &Path,
+) -> Result<(HashMap<String, Override>, Vec<String>)> {
+    let mut overrides = HashMap::new();
+    let mut ignores: Vec<String> = Vec::new();
+    if let Ok(config_file) = std::fs::read_to_string(config_file_path) {
+        let display_config_path = config_file_path.display().to_string().replace("\\", "/");
+        tracing::info!("Found straw config file: {display_config_path}");
+        let straw_config_parsed: Config = serde_json::from_str(config_file.as_str())?;
+
+        if let Some(general_overrides) = &straw_config_parsed.overrides {
+            overrides.extend(general_overrides.clone());
+        }
+
+        #[cfg(windows)]
+        if let Some(windows_overrides) = &straw_config_parsed.overrides_windows {
+            overrides.extend(windows_overrides.clone());
+        }
+
+        #[cfg(unix)]
+        if let Some(unix_overrides) = &straw_config_parsed.overrides_unix {
+            overrides.extend(unix_overrides.clone());
+        }
+
+        if let Some(general_ignores) = &straw_config_parsed.ignores {
+            ignores.extend(general_ignores.clone());
+        }
+
+        #[cfg(windows)]
+        if let Some(windows_ignores) = &straw_config_parsed.ignores_windows {
+            ignores.extend(windows_ignores.clone());
+        }
+
+        #[cfg(unix)]
+        if let Some(unix_ignores) = &straw_config_parsed.ignores_unix {
+            ignores.extend(unix_ignores.clone());
+        }
+    }
+
+    Ok((overrides, ignores))
 }
 
 fn main() -> Result<()> {
@@ -212,28 +220,11 @@ fn main() -> Result<()> {
         tracing::warn!("Running in `preview` mode. No changes will be applied.");
     }
 
-    let home = home::home_dir().ok_or(StrawError::String(
-        "Couldn't determine the home directory path.".into(),
-    ))?;
-    let home_dir = home.as_os_str().to_str().ok_or(StrawError::String(
-        "Couldn't convert {home:?} to &str.".into(),
-    ))?;
+    let home_dir = find_home()?;
+    let dotfiles_path: PathBuf = [&home_dir, DOTFILES_DIR].iter().collect();
+    let config_file_path: PathBuf = [&home_dir, DOTFILES_DIR, CONFIG_FILE].iter().collect();
 
-    let display_home = home.display().to_string().replace("\\", "/");
-    tracing::info!("Found home directory: {display_home}");
-    let dotfiles_path: PathBuf = [home_dir, DOTFILES_DIR].iter().collect();
-    let config_file_path: PathBuf = [home_dir, DOTFILES_DIR, CONFIG_FILE].iter().collect();
-
-    let mut repo_config = straw::git::RepositoryConfig {
-        remote: String::from("origin"),
-        branch: String::from("main"),
-    };
-    if let Ok(config_file) = std::fs::read_to_string(&config_file_path) {
-        let config: Config = serde_json::from_str(config_file.as_str())?;
-        if let Some(git) = config.git {
-            repo_config = git;
-        }
-    }
+    let repo_config = resolve_repo_config(&config_file_path)?;
 
     if let Some(Commands::Clone { url }) = &args.command {
         match straw::git::clone(&args, url, &dotfiles_path) {
@@ -275,45 +266,12 @@ fn main() -> Result<()> {
         }
     }
 
-    let mut overrides = HashMap::new();
-    let mut ignores: Vec<String> = Vec::new();
-    if let Ok(config_file) = std::fs::read_to_string(&config_file_path) {
-        let display_config_path = config_file_path.display().to_string().replace("\\", "/");
-        tracing::info!("Found straw config file: {display_config_path}");
-        let straw_config_parsed: Config = serde_json::from_str(config_file.as_str())?;
-
-        if let Some(general_overrides) = &straw_config_parsed.overrides {
-            overrides.extend(general_overrides.clone());
-        }
-
-        #[cfg(windows)]
-        if let Some(windows_overrides) = &straw_config_parsed.overrides_windows {
-            overrides.extend(windows_overrides.clone());
-        }
-
-        #[cfg(unix)]
-        if let Some(unix_overrides) = &straw_config_parsed.overrides_unix {
-            overrides.extend(unix_overrides.clone());
-        }
-
-        if let Some(general_ignores) = &straw_config_parsed.ignores {
-            ignores.extend(general_ignores.clone());
-        }
-
-        #[cfg(windows)]
-        if let Some(windows_ignores) = &straw_config_parsed.ignores_windows {
-            ignores.extend(windows_ignores.clone());
-        }
-
-        #[cfg(unix)]
-        if let Some(unix_ignores) = &straw_config_parsed.ignores_unix {
-            ignores.extend(unix_ignores.clone());
-        }
-    }
+    // load overrides and ignores from the config file
+    let (overrides, ignores) = resolve_straw_config(&config_file_path)?;
 
     let dotfiles = std::fs::read_dir(&dotfiles_path)?;
     let info = StateInfo {
-        home_dir,
+        home_dir: &home_dir,
         dotfiles_path: dotfiles_path.clone(),
         args: &args,
         env_var_regex,
