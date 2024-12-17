@@ -75,6 +75,33 @@ pub fn fetch<'a>(
     Ok(repository.reference_to_annotated_commit(&fetch_head)?)
 }
 
+pub fn rebase(repository: &git2::Repository, repo_config: &RepositoryConfig) -> Result<()> {
+    let upstream_commit_oid = repository.head()?.target().ok_or(StrawError::String(
+        "Couldn't find target commit for rebase.".into(),
+    ))?;
+    let upstream_commit = repository.find_annotated_commit(upstream_commit_oid)?;
+
+    let local_head_oid =
+        repository.refname_to_id(&format!("refs/heads/{}", repo_config.branch,))?;
+    let local_head = repository.find_annotated_commit(local_head_oid)?;
+
+    let mut rebase_opts = git2::RebaseOptions::default();
+    rebase_opts.inmemory(false);
+
+    let mut rebase = repository.rebase(
+        Some(&local_head),
+        Some(&upstream_commit),
+        None,
+        Some(&mut rebase_opts),
+    )?;
+    for r in rebase.by_ref() {
+        r?;
+    }
+    rebase.finish(None)?;
+
+    Ok(())
+}
+
 pub fn fast_forward_merge(
     repository: &git2::Repository,
     local_branch: &mut git2::Reference,
@@ -96,7 +123,7 @@ pub fn normal_merge(
     repository: &git2::Repository,
     local_commit: &git2::AnnotatedCommit,
     remote_commit: &git2::AnnotatedCommit,
-) -> Result<git2::Oid> {
+) -> Result<()> {
     let local_tree = repository.find_commit(local_commit.id())?.tree()?;
     let remote_tree = repository.find_commit(remote_commit.id())?.tree()?;
     let ancestor_tree = repository
@@ -120,7 +147,7 @@ pub fn normal_merge(
     let local_commit = repository.find_commit(local_commit.id())?;
     let remote_commit = repository.find_commit(remote_commit.id())?;
 
-    let merge_commit = repository.commit(
+    let _merge_commit = repository.commit(
         Some("HEAD"),
         &signature,
         &signature,
@@ -129,7 +156,7 @@ pub fn normal_merge(
         &[&local_commit, &remote_commit],
     )?;
 
-    Ok(merge_commit)
+    Ok(())
 }
 
 pub fn merge(
