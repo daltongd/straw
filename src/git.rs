@@ -7,6 +7,14 @@ use std::path::{Path, PathBuf};
 pub struct RepositoryConfig {
     pub remote: String,
     pub branch: String,
+    pub merge_flavor: Option<MergeFlavor>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+pub enum MergeFlavor {
+    #[default]
+    Rebase,
+    Merge,
 }
 
 pub fn fetch<'a>(
@@ -75,33 +83,6 @@ pub fn fetch<'a>(
     Ok(repository.reference_to_annotated_commit(&fetch_head)?)
 }
 
-pub fn rebase(repository: &git2::Repository, repo_config: &RepositoryConfig) -> Result<()> {
-    let upstream_commit_oid = repository.head()?.target().ok_or(StrawError::String(
-        "Couldn't find target commit for rebase.".into(),
-    ))?;
-    let upstream_commit = repository.find_annotated_commit(upstream_commit_oid)?;
-
-    let local_head_oid =
-        repository.refname_to_id(&format!("refs/heads/{}", repo_config.branch,))?;
-    let local_head = repository.find_annotated_commit(local_head_oid)?;
-
-    let mut rebase_opts = git2::RebaseOptions::default();
-    rebase_opts.inmemory(false);
-
-    let mut rebase = repository.rebase(
-        Some(&local_head),
-        Some(&upstream_commit),
-        None,
-        Some(&mut rebase_opts),
-    )?;
-    for r in rebase.by_ref() {
-        r?;
-    }
-    rebase.finish(None)?;
-
-    Ok(())
-}
-
 pub fn fast_forward_merge(
     repository: &git2::Repository,
     local_branch: &mut git2::Reference,
@@ -161,21 +142,21 @@ pub fn normal_merge(
 
 pub fn merge(
     repository: &git2::Repository,
-    fetch_commit: git2::AnnotatedCommit,
-    branch: &str,
+    fetch_commit: &git2::AnnotatedCommit,
+    repo_config: &RepositoryConfig,
 ) -> Result<()> {
-    let analysis = repository.merge_analysis(&[&fetch_commit])?;
+    let analysis = repository.merge_analysis(&[fetch_commit])?;
     if analysis.0.is_fast_forward() {
         tracing::info!("Sync: Performing a fast-forward merge");
-        let refs = format!("refs/heads/{branch}");
+        let refs = format!("refs/heads/{}", &repo_config.branch);
         match repository.find_reference(&refs) {
-            Ok(mut refs) => fast_forward_merge(repository, &mut refs, &fetch_commit)?,
+            Ok(mut refs) => fast_forward_merge(repository, &mut refs, fetch_commit)?,
             Err(_) => {
                 repository.reference(
                     &refs,
                     fetch_commit.id(),
                     true,
-                    &format!("Setting {} to {}", branch, fetch_commit.id()),
+                    &format!("Setting {} to {}", &repo_config.branch, fetch_commit.id()),
                 )?;
                 repository.set_head(&refs)?;
                 repository.checkout_head(Some(
@@ -189,7 +170,10 @@ pub fn merge(
     } else if analysis.0.is_normal() {
         tracing::info!("Sync: Performing merge");
         let head_commit = repository.reference_to_annotated_commit(&repository.head()?)?;
-        normal_merge(repository, &head_commit, &fetch_commit)?;
+        match repo_config.merge_flavor.clone().unwrap_or_default() {
+            MergeFlavor::Rebase => rebase(repository, &head_commit, fetch_commit)?,
+            MergeFlavor::Merge => normal_merge(repository, &head_commit, fetch_commit)?,
+        }
     } else {
         tracing::info!("Sync: Already up-to-date")
     }
@@ -272,6 +256,31 @@ pub fn push_changes(_args: &Args, path: &PathBuf, repo_config: &RepositoryConfig
     Ok(())
 }
 
+pub fn rebase(
+    repository: &git2::Repository,
+    local_commit: &git2::AnnotatedCommit,
+    remote_commit: &git2::AnnotatedCommit,
+) -> Result<()> {
+    tracing::info!("Sync: Perfroming rebase");
+    let mut rebase_opts = git2::RebaseOptions::default();
+    let mut rebase = repository.rebase(
+        Some(local_commit),
+        Some(remote_commit),
+        None,
+        Some(&mut rebase_opts),
+    )?;
+
+    let signature = repository.signature()?;
+    while let Some(Ok(_rebase_op)) = &rebase.next() {
+        rebase.commit(None, &signature, None)?;
+    }
+    rebase.finish(None)?;
+
+    tracing::info!("Sync: Rebase done");
+
+    Ok(())
+}
+
 pub fn update_dotfiles(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<()> {
     tracing::info!(
         "Sync: updating .dotfiles from {} {}",
@@ -284,7 +293,7 @@ pub fn update_dotfiles(args: &Args, path: &PathBuf, repo_config: &RepositoryConf
     let repository = git2::Repository::open(path)?;
     let mut remote = repository.find_remote(&repo_config.remote)?;
     let head = fetch(&repository, &mut remote, &[&repo_config.branch])?;
-    merge(&repository, head, &repo_config.branch)?;
+    merge(&repository, &head, repo_config)?;
     Ok(())
 }
 

@@ -9,7 +9,7 @@ use clap::Parser;
 use regex::{Captures, Regex};
 use straw::{
     args::{Args, Commands},
-    git::RepositoryConfig,
+    git::{MergeFlavor, RepositoryConfig},
     result::{Result, StrawError},
     state::StateInfo,
     straw_config::{Config, Override},
@@ -141,6 +141,7 @@ fn resolve_repo_config(config_file_path: &Path) -> Result<RepositoryConfig> {
     let mut repo_config = straw::git::RepositoryConfig {
         remote: String::from("origin"),
         branch: String::from("main"),
+        merge_flavor: Some(MergeFlavor::default()),
     };
 
     if let Ok(config_file) = std::fs::read_to_string(config_file_path) {
