@@ -86,6 +86,8 @@ fn apply_config(name: &str, info: &StateInfo) -> Result<()> {
                 }
             })
             .into_owned();
+        let to = to.replace("~", info.home_dir);
+
         let display_from = from.replace("\\", "/");
         let display_to = path_override.to.replace("\\", "/");
         tracing::info!("\t\tFound override:\t\t\t{display_from} -> {display_to}");
