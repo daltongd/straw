@@ -146,3 +146,25 @@ In the overrides:
   - e.g. `$HOME` on unix
   - in the cross-platform overrides you can use either syntax, but make sure the
   environment variable is present on all systems you deploy your configs to
+
+## Todos
+
+- [ ] cache deployed symlinks and add `--clear` or a similar command
+- [ ] env vars, also cached
+- [ ] adopt ..?
+- [ ] use profiles' directory structures when path folding
+- [ ] swappable profiles
+- [ ] per-device (hostname) ignores/overrides
+- [ ] json is cumbersome to use and doesn't allow trailing commas. replace with toml? or lua?
+- [x] resolve `~` in paths
+
+- [ ] additional console args for overrides (especially useful for initial clone)
+
+- [x] add `ssh2` with `openssl-on-win32` for windows to let `git2` handle cloning
+over `ssh://`
+- [ ] git merge flavor, remote and branch (repo config) override args
+- [ ] git status
+- [ ] git pull only
+- [ ] git sync with a commit message
+- [ ] git conflict resolution ..? (or post-conflict resolution sync option? maybe)
+separate commit + push command could suffice?)

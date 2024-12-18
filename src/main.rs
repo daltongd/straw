@@ -18,8 +18,6 @@ use straw::{
 const DOTFILES_DIR: &str = ".dotfiles/";
 const CONFIG_FILE: &str = "config.json";
 
-// TODO: adopt
-
 fn fold_and_apply(name: &str, info: &StateInfo, from_dir: ReadDir, to: PathBuf) -> Result<()> {
     for item in from_dir {
         let item = item?;
