@@ -121,8 +121,7 @@ In the overrides:
 - You can use environment variables in the `to` path
   - e.g. `%userprofile%` on windows
   - e.g. `$HOME` on unix
-  - in the cross-platform overrides you can use either syntax, but make sure the
-  environment variable is present on all systems you deploy your configs to
+  - you can also us `~` as a home directory on all platforms
 
 ## Todos
 
