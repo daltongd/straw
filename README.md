@@ -84,7 +84,7 @@ straw uses a lua-based config inspired by the likes of [WezTerm](https://wezfurl
 or [Neovim](https://neovim.io/)
 The config file can be placed in `~/.dotfiles/.straw/config.lua`.
 
-Here is the example config:
+Here is an example config:
 
 ```lua
 local straw = require("straw")
