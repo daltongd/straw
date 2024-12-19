@@ -2,9 +2,9 @@
     <h1>
         🥤 🍓 🧃 straw 🍹 🧋 👒
     </h1>
-    <h3>
-        an opinionated take on stow with git-based sync capabilities with an optional lua-based config
-    </h3>
+    <h4>
+        an opinionated take on [GNU Stow](https://www.gnu.org/software/stow/) with git-based sync capabilities with an optional lua-based config
+    </h4>
     <hr />
     <!-- <a href="https://github.com/daltongd/yanklock.nvim/actions/workflows/run_tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/daltongd/yanklock.nvim/run_tests.yml?style=for-the-badge&logo=github&label=tests&labelColor=%23aa55aa"></a> -->
     <!-- <a href="https://github.com/daltongd/yanklock.nvim?tab=MIT-1-ov-file#readme"><img src="https://img.shields.io/github/license/daltongd/yanklock.nvim?style=for-the-badge&logo=opensourceinitiative"></a> -->
