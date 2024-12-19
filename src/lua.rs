@@ -18,7 +18,7 @@ fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::prelude::LuaTable> {
     #[cfg(windows)]
     module.set("platform", "windows")?;
     #[cfg(unix)]
-    exports.set("platform", "unix")?;
+    module.set("platform", "unix")?;
 
     Ok(module)
 }
