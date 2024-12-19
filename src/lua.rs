@@ -1,21 +1,26 @@
 use std::path::Path;
 
-use crate::{result::Result, straw_config::Config};
+use crate::{
+    result::{Result, StrawError},
+    straw_config::Config,
+};
 
-fn create_straw_table(lua: &mlua::Lua) -> Result<mlua::prelude::LuaTable> {
-    let exports = lua.create_table()?;
+use mlua::prelude::*;
+
+fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::prelude::LuaTable> {
+    let module = get_or_create_module(lua, "straw")?;
     let f = lua.create_function(move |_, ()| {
         tracing::warn!("WORKS");
         Ok(())
     })?;
-    exports.set("f", f)?;
+    module.set("f", f)?;
 
     #[cfg(windows)]
-    exports.set("platform", "windows")?;
+    module.set("platform", "windows")?;
     #[cfg(unix)]
     exports.set("platform", "unix")?;
 
-    Ok(exports)
+    Ok(module)
 }
 
 fn setup_lua_path(lua: &mlua::Lua, dotfiles_path: &Path) -> Result<()> {
@@ -38,14 +43,11 @@ fn setup_lua_path(lua: &mlua::Lua, dotfiles_path: &Path) -> Result<()> {
 }
 
 pub fn run_lua_config(dotfiles_path: &Path) -> Result<Config> {
-    use mlua::prelude::*;
-
     let lua = Lua::new();
 
     setup_lua_path(&lua, dotfiles_path)?;
 
-    let globals = lua.globals();
-    globals.set("straw", create_straw_table(&lua)?)?;
+    create_straw_module(&lua)?;
 
     let config = lua
         .load(
@@ -97,4 +99,45 @@ pub fn run_lua_config(dotfiles_path: &Path) -> Result<Config> {
     tracing::info!("{config:?}");
 
     Ok(config)
+}
+
+// https://github.com/wez/wezterm/blob/main/config/src/lua.rs#L33
+pub fn get_or_create_module(lua: &Lua, name: &str) -> Result<mlua::Table> {
+    let globals = lua.globals();
+    let package: mlua::Table = globals.get("package")?;
+    let loaded: mlua::Table = package.get("loaded")?;
+
+    let module = loaded.get(name)?;
+    match module {
+        mlua::Value::Nil => {
+            let module = lua.create_table()?;
+            loaded.set(name, module.clone())?;
+            Ok(module)
+        }
+        mlua::Value::Table(table) => Ok(table),
+        wat => Err(StrawError::String(format!(
+            "cannot register module {} as package.loaded.{} is already set to a value of type {}",
+            name,
+            name,
+            wat.type_name()
+        ))),
+    }
+}
+
+// https://github.com/wez/wezterm/blob/main/config/src/lua.rs#L55
+pub fn get_or_create_sub_module(lua: &Lua, name: &str) -> Result<mlua::Table> {
+    let wezterm_mod = get_or_create_module(lua, "wezterm")?;
+    let sub = wezterm_mod.get(name)?;
+    match sub {
+        mlua::Value::Nil => {
+            let sub = lua.create_table()?;
+            wezterm_mod.set(name, sub.clone())?;
+            Ok(sub)
+        }
+        mlua::Value::Table(sub) => Ok(sub),
+        wat => Err(StrawError::String(format!(
+            "cannot register module wezterm.{name} as it is already set to a value of type {}",
+            wat.type_name()
+        ))),
+    }
 }
