@@ -1,10 +1,11 @@
 <div align="center">
     <h1>
-        🥤 straw 🍓🧃🍹🧋👒
+        🥤 🍓 🧃 straw 🍹 🧋 👒
     </h1>
     <h3>
-        an opinionated take on stow with sync capabilities and optional config for per-platform overrides
+        an opinionated take on stow with git-based sync capabilities with an optional lua-based config
     </h3>
+    <hr />
     <!-- <a href="https://github.com/daltongd/yanklock.nvim/actions/workflows/run_tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/daltongd/yanklock.nvim/run_tests.yml?style=for-the-badge&logo=github&label=tests&labelColor=%23aa55aa"></a> -->
     <!-- <a href="https://github.com/daltongd/yanklock.nvim?tab=MIT-1-ov-file#readme"><img src="https://img.shields.io/github/license/daltongd/yanklock.nvim?style=for-the-badge&logo=opensourceinitiative"></a> -->
 </div>
@@ -23,7 +24,7 @@
 ## What is straw?
 
 An opinionated and pretty basic dotfiles manager inspired by stow, yet with additional
-per-platform configuration options and git integration.
+configuration options and a built-in git integration.
 
 ## Installation
 
@@ -79,64 +80,40 @@ straw -sap
 
 ## Configuration
 
-The config file can be placed in `~/.dotfiles/config.json`.
+straw uses a lua-based config inspired by the likes of [WezTerm](https://wezfurlong.org/wezterm)
+or [Neovim](https://neovim.io/)
+The config file can be placed in `~/.dotfiles/.straw/config.lua`.
 
 Here is the example config:
 
-```json
-{
-    "git": {
-        "remote": "origin",
-        "branch": "main"
-    },
-    "overrides_windows": [
-        [
-            "powershell",
-            {
-                "from": "Microsoft.PowerShell_profile.ps1",
-                "to": "%userprofile%/Documents/PowerShell/Microsoft.PowerShell_profile.ps1"
-            }
-        ],
-        [
-            "nvim",
-            {
-                "from": ".config/nvim",
-                "to": "%localappdata%/nvim"
-            }
-        ],
-        [
-            "yazi",
-            {
-                "from": ".config/yazi",
-                "to": "%appdata%/yazi/config"
-            }
-        ]
-    ],
-    "ignores_unix": [
-        "komorebi",
-        "whkd",
-        "winfetch",
-        "powershell"
-    ],
-    "ignores_windows": [
-        "fish"
-    ]
+```lua
+local straw = require("straw")
+local config = {}
+
+config.git = {
+ remote = "origin",
+ branch = "main",
 }
+
+config.overrides = {}
+
+if straw.platform == "windows" then
+ config.overrides["powershell"] = {
+  from = "Microsoft.PowerShell_profile.ps1",
+  to = "%userprofile%/Documents/PowerShell/Microsoft.PowerShell_profile.ps1",
+ }
+ config.overrides["nvim"] = { from = ".config/nvim", to = "%localappdata%/nvim" }
+ config.overrides["yazi"] = { from = ".config/yazi", to = "%appdata%/yazi/config" }
+end
+
+if straw.platform == "windows" then
+ config.ignores = { "fish" }
+elseif straw.platform == "unix" then
+ config.ignores = { "komorebi", "whkd", "winfetch", "powershell", "wpm" }
+end
+
+return config
 ```
-
-Available keys:
-
-```json
-"git"                 // git config overrides
-"overrides"           // path overrides for all platforms
-"overrides_windows"   // path overrides for windows
-"overrides_unix"      // path overrides for unix
-"ignores"             // ignored configs for all platforms
-"ignores_windows"     // ignored configs for all windows
-"ignores_unix"        // ignored configs for all unix
-```
-
-The `overrides` and `ignores` syntax follows the example above.
 
 In the overrides:
 
@@ -151,12 +128,11 @@ In the overrides:
 
 - [ ] cache deployed symlinks and add `--clear` or a similar command
 - [ ] env vars, also cached
-- [ ] add adopt ..? - not sure if this is truly useful, but should be evaluated at least
-- [ ] use profiles' directory structures when path folding
+- [ ] add adopt ? - not sure if this is truly useful, but should be evaluated
+- [ ] use packages' directory structures when path folding
 - [ ] swappable profiles
-- [ ] per-device (hostname) ignores/overrides
-- [ ] json is cumbersome to use and doesn't allow trailing commas. replace with toml?
-or lua?
+- [ ] per-device (hostname) ignores/overrides - instead add hostname to lua module
+- [x] replace json with lua for some added pizzaz
 - [x] resolve `~` in paths
 
 - [ ] additional console args for overrides (especially useful for initial clone)
