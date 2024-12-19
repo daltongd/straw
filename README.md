@@ -151,11 +151,12 @@ In the overrides:
 
 - [ ] cache deployed symlinks and add `--clear` or a similar command
 - [ ] env vars, also cached
-- [ ] adopt ..?
+- [ ] add adopt ..? - not sure if this is truly useful, but should be evaluated at least
 - [ ] use profiles' directory structures when path folding
 - [ ] swappable profiles
 - [ ] per-device (hostname) ignores/overrides
-- [ ] json is cumbersome to use and doesn't allow trailing commas. replace with toml? or lua?
+- [ ] json is cumbersome to use and doesn't allow trailing commas. replace with toml?
+or lua?
 - [x] resolve `~` in paths
 
 - [ ] additional console args for overrides (especially useful for initial clone)

@@ -1,6 +1,6 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
-use crate::{args::Args, straw_config::Override};
+use crate::{args::Args, straw_config::Config};
 use regex::Regex;
 
 #[derive(Debug)]
@@ -9,6 +9,5 @@ pub struct StateInfo<'a> {
     pub dotfiles_path: PathBuf,
     pub args: &'a Args,
     pub env_var_regex: Regex,
-    pub overrides: HashMap<String, Override>,
-    pub ignores: Vec<String>,
+    pub config: Config,
 }

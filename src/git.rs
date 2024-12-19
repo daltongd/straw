@@ -3,7 +3,7 @@ use crate::result::{Result, StrawError};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct RepositoryConfig {
     pub remote: String,
     pub branch: String,

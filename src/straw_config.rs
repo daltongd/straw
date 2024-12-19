@@ -3,27 +3,33 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+use crate::git::RepositoryConfig;
+
+#[derive(Serialize, Deserialize, Debug, Clone, mlua::FromLua)]
 pub struct Override {
     pub from: String,
     pub to: String,
 }
 
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, mlua::FromLua)]
 pub struct Config {
-    pub git: Option<crate::git::RepositoryConfig>,
+    #[serde(default = "default_repo_config")]
+    pub git: crate::git::RepositoryConfig,
 
-    #[serde_as(as = "Option<Vec<(_, _)>>")]
-    pub overrides: Option<HashMap<String, Override>>,
+    #[serde(default = "default_overrides")]
+    pub overrides: HashMap<String, Override>,
 
-    #[serde_as(as = "Option<Vec<(_, _)>>")]
-    pub overrides_windows: Option<HashMap<String, Override>>,
+    #[serde(default = "default_ignores")]
+    pub ignores: Vec<String>,
+}
 
-    #[serde_as(as = "Option<Vec<(_, _)>>")]
-    pub overrides_unix: Option<HashMap<String, Override>>,
-
-    pub ignores: Option<Vec<String>>,
-    pub ignores_windows: Option<Vec<String>>,
-    pub ignores_unix: Option<Vec<String>>,
+fn default_repo_config() -> RepositoryConfig {
+    RepositoryConfig::default()
+}
+fn default_overrides() -> HashMap<String, Override> {
+    HashMap::default()
+}
+fn default_ignores() -> Vec<String> {
+    Vec::default()
 }

@@ -8,6 +8,7 @@ pub enum StrawError {
     Serde(serde_json::error::Error),
     Regex(regex::Error),
     Git(git2::Error),
+    Lua(mlua::Error),
 }
 
 impl From<std::io::Error> for StrawError {
@@ -43,5 +44,11 @@ impl From<regex::Error> for StrawError {
 impl From<git2::Error> for StrawError {
     fn from(value: git2::Error) -> Self {
         StrawError::Git(value)
+    }
+}
+
+impl From<mlua::Error> for StrawError {
+    fn from(value: mlua::Error) -> Self {
+        StrawError::Lua(value)
     }
 }

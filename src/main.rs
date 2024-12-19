@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs::ReadDir,
     path::{Path, PathBuf},
     str::FromStr,
@@ -12,11 +11,9 @@ use straw::{
     git::{MergeFlavor, RepositoryConfig},
     result::{Result, StrawError},
     state::StateInfo,
-    straw_config::{Config, Override},
 };
 
 const DOTFILES_DIR: &str = ".dotfiles/";
-const CONFIG_FILE: &str = "config.json";
 
 fn fold_and_apply(name: &str, info: &StateInfo, from_dir: ReadDir, to: PathBuf) -> Result<()> {
     for item in from_dir {
@@ -55,20 +52,20 @@ fn fold_and_apply(name: &str, info: &StateInfo, from_dir: ReadDir, to: PathBuf) 
     Ok(())
 }
 
-fn apply_config(name: &str, info: &StateInfo) -> Result<()> {
-    let config_path = &info.dotfiles_path;
-    let config_path = config_path.join(name);
+fn apply_package(name: &str, info: &StateInfo) -> Result<()> {
+    let package_path = &info.dotfiles_path;
+    let package_path = package_path.join(name);
 
-    let config_dir = std::fs::read_dir(&config_path)?;
+    let package_dir = std::fs::read_dir(&package_path)?;
 
-    tracing::info!("config: {name}");
-    if info.ignores.contains(&name.into()) {
+    tracing::info!("package: {name}");
+    if info.config.ignores.contains(&name.into()) {
         tracing::info!("Ignoring {name}");
         return Ok(());
     }
 
-    if info.overrides.contains_key(name) {
-        let path_override = &info.overrides[name];
+    if info.config.overrides.contains_key(name) {
+        let path_override = &info.config.overrides[name];
 
         let from = path_override.from.clone();
         let to = path_override.to.clone();
@@ -117,7 +114,7 @@ fn apply_config(name: &str, info: &StateInfo) -> Result<()> {
             straw::fs::create_symlink(info, from_path, to)?;
         }
     } else {
-        fold_and_apply(name, info, config_dir, PathBuf::from(info.home_dir))?;
+        fold_and_apply(name, info, package_dir, PathBuf::from(info.home_dir))?;
     }
 
     Ok(())
@@ -137,63 +134,19 @@ fn find_home() -> Result<String> {
     Ok(home_dir.into())
 }
 
-fn resolve_repo_config(config_file_path: &Path) -> Result<RepositoryConfig> {
+// TODO: evaluate if this shouldn't be replaced with some other file or console arguments
+fn resolve_repo_config(dotfiles_path: &Path) -> Result<RepositoryConfig> {
     let mut repo_config = straw::git::RepositoryConfig {
         remote: String::from("origin"),
         branch: String::from("main"),
         merge_flavor: Some(MergeFlavor::default()),
     };
 
-    if let Ok(config_file) = std::fs::read_to_string(config_file_path) {
-        let config: Config = serde_json::from_str(config_file.as_str())?;
-        if let Some(git) = config.git {
-            repo_config = git;
-        }
+    if let Ok(config) = straw::lua::run_lua_config(dotfiles_path) {
+        repo_config = config.git;
     }
 
     Ok(repo_config)
-}
-
-fn resolve_straw_config(
-    config_file_path: &Path,
-) -> Result<(HashMap<String, Override>, Vec<String>)> {
-    let mut overrides = HashMap::new();
-    let mut ignores: Vec<String> = Vec::new();
-    if let Ok(config_file) = std::fs::read_to_string(config_file_path) {
-        let display_config_path = config_file_path.display().to_string().replace("\\", "/");
-        tracing::info!("Found straw config file: {display_config_path}");
-        let straw_config_parsed: Config = serde_json::from_str(config_file.as_str())?;
-
-        if let Some(general_overrides) = &straw_config_parsed.overrides {
-            overrides.extend(general_overrides.clone());
-        }
-
-        #[cfg(windows)]
-        if let Some(windows_overrides) = &straw_config_parsed.overrides_windows {
-            overrides.extend(windows_overrides.clone());
-        }
-
-        #[cfg(unix)]
-        if let Some(unix_overrides) = &straw_config_parsed.overrides_unix {
-            overrides.extend(unix_overrides.clone());
-        }
-
-        if let Some(general_ignores) = &straw_config_parsed.ignores {
-            ignores.extend(general_ignores.clone());
-        }
-
-        #[cfg(windows)]
-        if let Some(windows_ignores) = &straw_config_parsed.ignores_windows {
-            ignores.extend(windows_ignores.clone());
-        }
-
-        #[cfg(unix)]
-        if let Some(unix_ignores) = &straw_config_parsed.ignores_unix {
-            ignores.extend(unix_ignores.clone());
-        }
-    }
-
-    Ok((overrides, ignores))
 }
 
 fn main() -> Result<()> {
@@ -223,9 +176,8 @@ fn main() -> Result<()> {
 
     let home_dir = find_home()?;
     let dotfiles_path: PathBuf = [&home_dir, DOTFILES_DIR].iter().collect();
-    let config_file_path: PathBuf = [&home_dir, DOTFILES_DIR, CONFIG_FILE].iter().collect();
 
-    let repo_config = resolve_repo_config(&config_file_path)?;
+    let repo_config = resolve_repo_config(&dotfiles_path)?;
 
     if let Some(Commands::Clone { url }) = &args.command {
         match straw::git::clone(&args, url, &dotfiles_path) {
@@ -267,8 +219,7 @@ fn main() -> Result<()> {
         }
     }
 
-    // load overrides and ignores from the config file
-    let (overrides, ignores) = resolve_straw_config(&config_file_path)?;
+    let config = straw::lua::run_lua_config(&dotfiles_path)?;
 
     let dotfiles = std::fs::read_dir(&dotfiles_path)?;
     let info = StateInfo {
@@ -276,24 +227,23 @@ fn main() -> Result<()> {
         dotfiles_path: dotfiles_path.clone(),
         args: &args,
         env_var_regex,
-        overrides,
-        ignores,
+        config,
     };
 
-    let mut configs = Vec::new();
+    let mut packages = Vec::new();
     for path in dotfiles {
         let path = path?;
         if let Some(item_name) = path.file_name().to_str() {
             if path.file_type()?.is_dir() && !item_name.starts_with(".") {
-                configs.push(item_name.to_owned());
+                packages.push(item_name.to_owned());
             }
         }
     }
-    tracing::info!("Configs found: {configs:?}");
+    tracing::info!("Packages found: {packages:?}");
 
     if args.apply {
-        for config in configs {
-            apply_config(&config, &info)?;
+        for package in packages {
+            apply_package(&package, &info)?;
         }
     }
 
