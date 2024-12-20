@@ -40,7 +40,7 @@ You can also clone this repo and compile it yourself.
 ## Usage
 
 straw expects your configs to be in a stow-like directory structure under your
-`~/.dotfiles` directory.
+`~/.dotfiles` directory. Directories within `~/.dotfiles` with names that begin with a dot (`.`, e.g. -> `.straw`) are ignored and not treated as packages.
 
 To clone your dotfiles repo to this path, use:
 
