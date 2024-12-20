@@ -206,10 +206,13 @@ pub fn commit_changes(
 
     let mut has_changes = false;
     for statuses in repository.statuses(Some(&mut status_options)).iter() {
-        for status in statuses.iter() {
+        if !statuses.is_empty() {
             has_changes = true;
-            tracing::warn!("{}: {:?}", status.path().unwrap_or("huh"), status.status());
+            break;
         }
+        // for status in statuses.iter() {
+        //     tracing::warn!("{}: {:?}", status.path().unwrap_or("huh"), status.status());
+        // }
     }
 
     if !has_changes {
