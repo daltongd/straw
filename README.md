@@ -2,9 +2,11 @@
     <h1>
         🥤 🍓 🧃 straw 🍹 🧋 👒
     </h1>
-    <h4>
+    <p>
+        <strong>
         an opinionated take on <a href="https://www.gnu.org/software/stow/">GNU Stow</a> with <a href="https://git-scm.com/">git</a>-based sync capabilities with an optional <a href="https://www.lua.org/">lua</a>-based config
-    </h4>
+        </strong>
+    </p>
     <hr />
     <!-- <a href="https://github.com/daltongd/yanklock.nvim/actions/workflows/run_tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/daltongd/yanklock.nvim/run_tests.yml?style=for-the-badge&logo=github&label=tests&labelColor=%23aa55aa"></a> -->
     <!-- <a href="https://github.com/daltongd/yanklock.nvim?tab=MIT-1-ov-file#readme"><img src="https://img.shields.io/github/license/daltongd/yanklock.nvim?style=for-the-badge&logo=opensourceinitiative"></a> -->
