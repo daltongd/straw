@@ -212,11 +212,9 @@ fn main() -> Result<()> {
         }
     } else if args.sync {
         // commit changes
-        let mut changes_committed = false;
         match straw::git::commit_changes(&args, &dotfiles_path, &repo_config) {
             Ok(any_changes_committed) => {
                 if any_changes_committed {
-                    changes_committed = true;
                     tracing::info!("Sync: Done committing local changes to .dotfiles")
                 } else {
                     tracing::info!("Sync: No local changes to commit");
@@ -231,12 +229,17 @@ fn main() -> Result<()> {
             Ok(_) => tracing::info!("Sync: .dotfiles updated"),
             Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
         }
-        if changes_committed {
-            match straw::git::push_changes(&args, &dotfiles_path, &repo_config) {
-                Ok(_) => tracing::info!("Sync: local changes pushed to {}", repo_config.remote),
-                Err(e) => {
-                    tracing::error!("Sync: Failed to push the local changes with error: {e:?}")
+
+        match straw::git::push_changes(&args, &dotfiles_path, &repo_config) {
+            Ok(any_changes_pushed) => {
+                if any_changes_pushed {
+                    tracing::info!("Sync: local changes pushed to {}", repo_config.remote)
+                } else {
+                    tracing::info!("Sync: No local changes to push")
                 }
+            }
+            Err(e) => {
+                tracing::error!("Sync: Failed to push the local changes with error: {e:?}")
             }
         }
     }

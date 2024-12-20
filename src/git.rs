@@ -1,5 +1,6 @@
 use crate::args::Args;
 use crate::result::{Result, StrawError};
+use git2::BranchType;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -180,7 +181,8 @@ pub fn merge(
     Ok(())
 }
 
-/// NOTE: Returns `Ok(true)` if any files were committed and `Ok(false)` otherwise
+/// NOTE: Returns `Ok(true)` if any files were committed and `Ok(false)` if there was nothing to
+/// commit
 pub fn commit_changes(
     args: &Args,
     path: &PathBuf,
@@ -189,17 +191,28 @@ pub fn commit_changes(
     tracing::info!("Sync: Committing local changes");
     let repository = git2::Repository::open(path)?;
 
-    let mut at_least_one_file_added = false;
     let mut index = repository.index()?;
     index.add_all(
         ["*"].iter(),
         git2::IndexAddOption::DEFAULT,
-        Some(&mut |_path: &Path, _: &[u8]| {
-            at_least_one_file_added = true;
-            0
-        }),
+        Some(&mut |_path: &Path, _: &[u8]| 0),
     )?;
-    if !at_least_one_file_added {
+
+    // TODO: Determine if there are any changes
+    let mut status_options = git2::StatusOptions::default();
+    status_options
+        .include_untracked(false)
+        .include_unmodified(false);
+
+    let mut has_changes = false;
+    for statuses in repository.statuses(Some(&mut status_options)).iter() {
+        for status in statuses.iter() {
+            has_changes = true;
+            tracing::warn!("{}: {:?}", status.path().unwrap_or("huh"), status.status());
+        }
+    }
+
+    if !has_changes {
         // NOTE: no changes to commit
         return Ok(false);
     }
@@ -235,10 +248,31 @@ pub fn commit_changes(
     Ok(true)
 }
 
-pub fn push_changes(_args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<()> {
+/// NOTE: Returns `Ok(true)` if any changes were pushed and `Ok(false)` there was nothing to push
+pub fn push_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<bool> {
     tracing::info!("Sync: Pushing local changes");
     let repository = git2::Repository::open(path)?;
     let mut remote = repository.find_remote(&repo_config.remote)?;
+
+    {
+        let local_branch = repository.find_branch(&repo_config.branch, BranchType::Local)?;
+        let head = repository.head()?.target();
+        if let Some(head) = head {
+            let upstream_branch = local_branch.upstream()?;
+            let upstream = upstream_branch.get().target();
+            if let Some(upstream) = upstream {
+                let (ahead, _behind) = repository.graph_ahead_behind(head, upstream)?;
+                if ahead < 1 {
+                    // NOTE: no changes to push
+                    return Ok(false);
+                }
+            }
+        }
+    }
+
+    if args.preview {
+        return Ok(true);
+    }
 
     let auth = auth_git2::GitAuthenticator::default();
     let auth = auth.add_default_ssh_keys();
@@ -253,7 +287,7 @@ pub fn push_changes(_args: &Args, path: &PathBuf, repo_config: &RepositoryConfig
         &[&format!("refs/heads/{}", repo_config.branch)],
     )?;
 
-    Ok(())
+    Ok(true)
 }
 
 pub fn rebase(
