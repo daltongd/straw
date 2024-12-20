@@ -128,7 +128,10 @@ In the overrides:
 ## Todos
 
 - [ ] cache deployed symlinks and add `--clear` or a similar command
-- [ ] env vars, also cached
+- [ ] backups .. ? configurable with overrides `--backup`, `--no-backup`,
+`--restore-backup` / `--restore`, `--clear-backup` - should report the size and path
+- [ ] patches - ability to get a specific directory/file from any dotfiles repository
+- [ ] env vars ? also cached
 - [ ] add adopt ? - not sure if this is truly useful, but should be evaluated
 - [ ] use packages' directory structures when path folding
 - [ ] swappable profiles
@@ -140,7 +143,7 @@ In the overrides:
 
 - [x] add `ssh2` with `openssl-on-win32` for windows to let `git2` handle cloning
 over `ssh://`
-- [ ] git merge flavor, remote and branch (repo config) override args
+- [x] git merge flavor, remote and branch (repo config) override args
 - [ ] git status
 - [ ] git pull only
 - [ ] git sync with a commit message

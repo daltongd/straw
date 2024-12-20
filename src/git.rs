@@ -14,7 +14,7 @@ pub struct RepositoryConfig {
 pub enum MergeFlavor {
     #[default]
     Rebase,
-    Merge,
+    MergeCommit,
 }
 
 pub fn fetch<'a>(
@@ -172,7 +172,7 @@ pub fn merge(
         let head_commit = repository.reference_to_annotated_commit(&repository.head()?)?;
         match repo_config.merge_flavor.clone().unwrap_or_default() {
             MergeFlavor::Rebase => rebase(repository, &head_commit, fetch_commit)?,
-            MergeFlavor::Merge => normal_merge(repository, &head_commit, fetch_commit)?,
+            MergeFlavor::MergeCommit => normal_merge(repository, &head_commit, fetch_commit)?,
         }
     } else {
         tracing::info!("Sync: Already up-to-date")

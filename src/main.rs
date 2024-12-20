@@ -135,7 +135,7 @@ fn find_home() -> Result<String> {
 }
 
 // TODO: evaluate if this shouldn't be replaced with some other file or console arguments
-fn resolve_repo_config(dotfiles_path: &Path) -> Result<RepositoryConfig> {
+fn resolve_repo_config(args: &Args, dotfiles_path: &Path) -> Result<RepositoryConfig> {
     let mut repo_config = straw::git::RepositoryConfig {
         remote: String::from("origin"),
         branch: String::from("main"),
@@ -144,6 +144,22 @@ fn resolve_repo_config(dotfiles_path: &Path) -> Result<RepositoryConfig> {
 
     if let Ok(config) = straw::lua::run_lua_config(dotfiles_path) {
         repo_config = config.git;
+    }
+
+    // apply args overrides
+    if let Some(branch) = &args.branch {
+        repo_config.branch = branch.to_owned();
+    }
+    if let Some(remote) = &args.remote {
+        repo_config.remote = remote.to_owned();
+    }
+
+    if args.merge_commit && args.rebase {
+        return Err(StrawError::String("The arguments --rebase and --merge-commit are mutually exclusive. Please use only one at a time.".into()));
+    } else if args.rebase {
+        repo_config.merge_flavor = Some(MergeFlavor::Rebase);
+    } else if args.merge_commit {
+        repo_config.merge_flavor = Some(MergeFlavor::MergeCommit);
     }
 
     Ok(repo_config)
@@ -177,7 +193,13 @@ fn main() -> Result<()> {
     let home_dir = find_home()?;
     let dotfiles_path: PathBuf = [&home_dir, DOTFILES_DIR].iter().collect();
 
-    let repo_config = resolve_repo_config(&dotfiles_path)?;
+    let repo_config = match resolve_repo_config(&args, &dotfiles_path) {
+        Ok(repo_config) => repo_config,
+        Err(e) => {
+            tracing::error!("{e}");
+            return Err(e);
+        }
+    };
 
     if let Some(Commands::Clone { url }) = &args.command {
         match straw::git::clone(&args, url, &dotfiles_path) {

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 pub type Result<T> = std::result::Result<T, StrawError>;
 
 #[derive(Debug)]
@@ -9,6 +11,34 @@ pub enum StrawError {
     Regex(regex::Error),
     Git(git2::Error),
     Lua(mlua::Error),
+}
+
+impl Display for StrawError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StrawError::Io(error) => {
+                write!(f, "{error:?}")
+            }
+            StrawError::String(error) => {
+                write!(f, "{error}")
+            }
+            StrawError::Tracing(error) => {
+                write!(f, "{error:?}")
+            }
+            StrawError::Serde(error) => {
+                write!(f, "{error:?}")
+            }
+            StrawError::Regex(error) => {
+                write!(f, "{error:?}")
+            }
+            StrawError::Git(error) => {
+                write!(f, "{error:?}")
+            }
+            StrawError::Lua(error) => {
+                write!(f, "{error:?}")
+            }
+        }
+    }
 }
 
 impl From<std::io::Error> for StrawError {
