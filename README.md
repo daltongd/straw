@@ -140,10 +140,12 @@ In the overrides:
 - [x] resolve `~` in paths
 
 - [ ] additional console args for overrides (especially useful for initial clone)
+things like: path, ignores, or ability to specify packages to apply
 
 - [x] add `ssh2` with `openssl-on-win32` for windows to let `git2` handle cloning
 over `ssh://`
 - [x] git merge flavor, remote and branch (repo config) override args
+- [x] git - determine if there are any changes to push/commit
 - [ ] git status
 - [ ] git pull only
 - [ ] git sync with a commit message
