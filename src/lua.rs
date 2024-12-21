@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::{
+    config::Config,
     result::{Result, StrawError},
-    straw_config::Config,
 };
 
 use mlua::prelude::*;

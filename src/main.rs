@@ -58,7 +58,7 @@ fn apply_package(name: &str, info: &StateInfo) -> Result<()> {
 
     let package_dir = std::fs::read_dir(&package_path)?;
 
-    tracing::info!("Package: {name}");
+    tracing::info!("Applying package: {name}");
     if info.config.ignores.contains(&name.into()) || info.args.ignore.contains(&name.into()) {
         tracing::info!("Ignoring {name}");
         return Ok(());

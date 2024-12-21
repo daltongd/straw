@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{args::Args, straw_config::Config};
+use crate::{args::Args, config::Config};
 use regex::Regex;
 
 #[derive(Debug)]

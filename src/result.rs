@@ -7,7 +7,6 @@ pub enum StrawError {
     Io(std::io::Error),
     String(String),
     Tracing(tracing::subscriber::SetGlobalDefaultError),
-    Serde(serde_json::error::Error),
     Regex(regex::Error),
     Git(git2::Error),
     Lua(mlua::Error),
@@ -41,12 +40,6 @@ impl From<String> for StrawError {
 impl From<tracing::subscriber::SetGlobalDefaultError> for StrawError {
     fn from(value: tracing::subscriber::SetGlobalDefaultError) -> Self {
         StrawError::Tracing(value)
-    }
-}
-
-impl From<serde_json::error::Error> for StrawError {
-    fn from(value: serde_json::error::Error) -> Self {
-        StrawError::Serde(value)
     }
 }
 
