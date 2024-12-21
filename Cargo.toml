@@ -4,7 +4,7 @@ version = "0.0.3"
 edition = "2021"
 
 [features]
-openssl = ["dep:ssh2"]
+openssl-on-win32 = ["dep:ssh2"]
 
 [dependencies]
 clap = { version = "4.5.23", features = ["derive"] }
