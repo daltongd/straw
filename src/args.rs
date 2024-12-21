@@ -24,8 +24,7 @@ pub struct Args {
     #[clap(long)]
     pub branch: Option<String>,
 
-    /// Set the merge flavor to a merge commit. This also selectively enables the Pull action. E.g. when
-    /// the Sync flag is not set
+    /// Set the merge flavor to a merge commit
     #[clap(long, action)]
     pub merge_commit: bool,
 
@@ -64,8 +63,14 @@ pub struct Args {
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     /// Clone a git repository into ~/.dotfiles
-    Clone { url: String },
+    Clone {
+        /// Repository url
+        url: String,
+    },
 
     /// Init a git repository in ~/.dotfiles, you can also provide the origin url
-    Init { url: Option<String> },
+    Init {
+        /// Remote url (optional)
+        url: Option<String>,
+    },
 }
