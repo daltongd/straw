@@ -139,8 +139,9 @@ In the overrides:
 - [x] replace json with lua for some added pizzaz
 - [x] resolve `~` in paths
 
-- [ ] additional console args for overrides (especially useful for initial clone)
-things like: path, ignores, or ability to specify packages to apply
+- [x] additional console args for overrides (especially useful for initial clone)
+things like: ignores, or ability to specify packages to apply
+- [ ] .dotfiles path override ?
 
 - [x] add `ssh2` with `openssl-on-win32` for windows to let `git2` handle cloning
 over `ssh://`

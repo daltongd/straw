@@ -58,8 +58,8 @@ fn apply_package(name: &str, info: &StateInfo) -> Result<()> {
 
     let package_dir = std::fs::read_dir(&package_path)?;
 
-    tracing::info!("package: {name}");
-    if info.config.ignores.contains(&name.into()) {
+    tracing::info!("Package: {name}");
+    if info.config.ignores.contains(&name.into()) || info.args.ignore.contains(&name.into()) {
         tracing::info!("Ignoring {name}");
         return Ok(());
     }
@@ -174,9 +174,14 @@ fn main() -> Result<()> {
     #[cfg(unix)]
     let env_var_regex = Regex::new(r"\$(\w+)")?;
 
+    #[cfg(debug_assertions)]
+    let max_log_level = tracing::Level::TRACE;
+    #[cfg(not(debug_assertions))]
+    let max_log_level = tracing::Level::INFO;
+
     let subscriber = tracing_subscriber::fmt()
         .compact()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(max_log_level)
         .without_time()
         .with_level(true)
         .with_file(false)
@@ -317,9 +322,13 @@ fn main() -> Result<()> {
     }
     tracing::info!("Packages found: {packages:?}");
 
-    if args.apply {
-        for package in packages {
-            apply_package(&package, &info)?;
+    if !args.packages.is_empty() {
+        for package in &args.packages {
+            apply_package(package, &info)?;
+        }
+    } else if args.apply {
+        for package in &packages {
+            apply_package(package, &info)?;
         }
     }
 

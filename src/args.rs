@@ -16,6 +16,14 @@ pub struct Args {
     #[clap(long, short, action)] // default_value = "true"
     pub apply: bool,
 
+    /// Specify packages to apply. Implies `--apply`
+    #[clap(long, num_args(1..))] // default_value = "true"
+    pub packages: Vec<String>,
+
+    /// Specify packages to ignore when applying the config
+    #[clap(long, num_args(1..))] // default_value = "true"
+    pub ignore: Vec<String>,
+
     /// Override git remote setting for this operation
     #[clap(long)]
     pub remote: Option<String>,
