@@ -146,8 +146,9 @@ things like: path, ignores, or ability to specify packages to apply
 over `ssh://`
 - [x] git merge flavor, remote and branch (repo config) override args
 - [x] git - determine if there are any changes to push/commit
-- [ ] git status
-- [ ] git pull only
-- [ ] git sync with a commit message
-- [ ] git conflict resolution ..? (or post-conflict resolution sync option? maybe)
-separate commit + push command could suffice?)
+- [x] git status
+- [x] git pull only
+- [x] git push only
+- [x] git sync with a commit message
+- [x] git set the default commit message in the config
+- [x] git init?

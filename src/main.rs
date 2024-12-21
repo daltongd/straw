@@ -140,6 +140,7 @@ fn resolve_repo_config(args: &Args, dotfiles_path: &Path) -> Result<RepositoryCo
         remote: String::from("origin"),
         branch: String::from("main"),
         merge_flavor: Some(MergeFlavor::default()),
+        commit_message: None,
     };
 
     if let Ok(config) = straw::lua::run_lua_config(dotfiles_path) {
@@ -204,42 +205,92 @@ fn main() -> Result<()> {
     if let Some(Commands::Clone { url }) = &args.command {
         match straw::git::clone(&args, url, &dotfiles_path) {
             Ok(_) => {
-                tracing::info!("Clone: successfully cloned {url} repository into ~/.dotfiles");
+                tracing::info!(
+                    "Clone: successfully cloned {url} repository into {}",
+                    dotfiles_path.display()
+                );
             }
             Err(e) => {
+                tracing::error!("Error cloning the repository: {e}");
                 return Err(e);
             }
         }
-    } else if args.sync {
-        // commit changes
-        match straw::git::commit_changes(&args, &dotfiles_path, &repo_config) {
-            Ok(any_changes_committed) => {
-                if any_changes_committed {
-                    tracing::info!("Sync: Done committing local changes to .dotfiles")
-                } else {
-                    tracing::info!("Sync: No local changes to commit");
-                }
-            }
-            Err(e) => tracing::error!(
-                "Sync: Failed to commit the local changes to .dotfiles with error: {e:?}"
-            ),
-        }
-        // update git repo
-        match straw::git::update_dotfiles(&args, &dotfiles_path, &repo_config) {
-            Ok(_) => tracing::info!("Sync: .dotfiles updated"),
-            Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
-        }
-
-        match straw::git::push_changes(&args, &dotfiles_path, &repo_config) {
-            Ok(any_changes_pushed) => {
-                if any_changes_pushed {
-                    tracing::info!("Sync: local changes pushed to {}", repo_config.remote)
-                } else {
-                    tracing::info!("Sync: No local changes to push")
+    } else if let Some(Commands::Init { url }) = &args.command {
+        match straw::git::init(&dotfiles_path, url.to_owned()) {
+            Ok(_) => {
+                tracing::info!(
+                    "Clone: successfully initialized a repository in {}",
+                    dotfiles_path.display()
+                );
+                if let Some(origin_url) = url {
+                    tracing::info!("Clone: origin url set to {origin_url}");
                 }
             }
             Err(e) => {
-                tracing::error!("Sync: Failed to push the local changes with error: {e:?}")
+                tracing::error!("Error initializng the repository: {e}");
+                return Err(e);
+            }
+        }
+    } else {
+        if args.status {
+            let status = straw::git::get_status(&dotfiles_path)?;
+            tracing::info!("Sync: Status");
+            if status.is_empty() {
+                tracing::info!("Status: Working directory clean.");
+            } else {
+                for (path, file_status) in status {
+                    let file_status = match file_status {
+                        git2::Status::INDEX_NEW => "new",
+                        git2::Status::INDEX_MODIFIED => "modified",
+                        git2::Status::INDEX_DELETED => "deleted",
+                        git2::Status::INDEX_RENAMED => "renamed",
+                        git2::Status::INDEX_TYPECHANGE => "type change",
+                        git2::Status::WT_NEW => "new",
+                        git2::Status::WT_MODIFIED => "modified",
+                        git2::Status::WT_DELETED => "deleted",
+                        git2::Status::WT_RENAMED => "renamed",
+                        git2::Status::WT_TYPECHANGE => "type change",
+                        git2::Status::CONFLICTED => "conflict",
+                        _ => continue,
+                    };
+                    tracing::info!("Status: {} ({})", path, file_status)
+                }
+            }
+        }
+        if args.sync || args.message.is_some() {
+            // commit changes
+            match straw::git::commit_changes(&args, &dotfiles_path, &repo_config) {
+                Ok(any_changes_committed) => {
+                    if any_changes_committed {
+                        tracing::info!("Sync: Done committing local changes to .dotfiles")
+                    } else {
+                        tracing::info!("Sync: No local changes to commit");
+                    }
+                }
+                Err(e) => tracing::error!(
+                    "Sync: Failed to commit the local changes to .dotfiles with error: {e:?}"
+                ),
+            }
+        }
+        if args.sync || args.pull {
+            // update git repo
+            match straw::git::update_dotfiles(&args, &dotfiles_path, &repo_config) {
+                Ok(_) => tracing::info!("Sync: .dotfiles updated"),
+                Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
+            }
+        }
+        if args.sync || args.push {
+            match straw::git::push_changes(&args, &dotfiles_path, &repo_config) {
+                Ok(any_changes_pushed) => {
+                    if any_changes_pushed {
+                        tracing::info!("Sync: local changes pushed to {}", repo_config.remote)
+                    } else {
+                        tracing::info!("Sync: No local changes to push")
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Sync: Failed to push the local changes with error: {e:?}")
+                }
             }
         }
     }

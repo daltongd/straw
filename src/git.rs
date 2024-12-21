@@ -9,6 +9,7 @@ pub struct RepositoryConfig {
     pub remote: String,
     pub branch: String,
     pub merge_flavor: Option<MergeFlavor>,
+    pub commit_message: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
@@ -18,7 +19,17 @@ pub enum MergeFlavor {
     MergeCommit,
 }
 
-pub fn fetch<'a>(
+pub fn init(path: &PathBuf, origin_url: Option<String>) -> Result<()> {
+    let mut options = git2::RepositoryInitOptions::new();
+    options.no_reinit(true);
+    if let Some(origin_url) = origin_url {
+        options.origin_url(&origin_url);
+    }
+    git2::Repository::init_opts(path, &options)?;
+    Ok(())
+}
+
+fn fetch<'a>(
     repository: &'a git2::Repository,
     remote: &'a mut git2::Remote,
     refs: &[&str],
@@ -84,7 +95,7 @@ pub fn fetch<'a>(
     Ok(repository.reference_to_annotated_commit(&fetch_head)?)
 }
 
-pub fn fast_forward_merge(
+fn fast_forward_merge(
     repository: &git2::Repository,
     local_branch: &mut git2::Reference,
     remote_commit: &git2::AnnotatedCommit,
@@ -101,7 +112,7 @@ pub fn fast_forward_merge(
     Ok(())
 }
 
-pub fn normal_merge(
+fn normal_merge(
     repository: &git2::Repository,
     local_commit: &git2::AnnotatedCommit,
     remote_commit: &git2::AnnotatedCommit,
@@ -181,13 +192,26 @@ pub fn merge(
     Ok(())
 }
 
+pub fn get_status(path: &PathBuf) -> Result<Vec<(String, git2::Status)>> {
+    let repository = git2::Repository::open(path)?;
+    let mut status_options = git2::StatusOptions::default();
+    status_options
+        .include_untracked(true)
+        .include_unmodified(false);
+
+    let mut out_status = Vec::default();
+    for statuses in repository.statuses(Some(&mut status_options)).iter() {
+        for status in statuses.iter() {
+            out_status.push((status.path().unwrap_or_default().into(), status.status()));
+        }
+    }
+
+    Ok(out_status)
+}
+
 /// NOTE: Returns `Ok(true)` if any files were committed and `Ok(false)` if there was nothing to
 /// commit
-pub fn commit_changes(
-    args: &Args,
-    path: &PathBuf,
-    _repo_config: &RepositoryConfig,
-) -> Result<bool> {
+pub fn commit_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<bool> {
     tracing::info!("Sync: Committing local changes");
     let repository = git2::Repository::open(path)?;
 
@@ -201,7 +225,7 @@ pub fn commit_changes(
     // TODO: Determine if there are any changes
     let mut status_options = git2::StatusOptions::default();
     status_options
-        .include_untracked(false)
+        .include_untracked(true)
         .include_unmodified(false);
 
     let mut has_changes = false;
@@ -226,7 +250,12 @@ pub fn commit_changes(
 
     let host = hostname::get()?;
     let host = host.to_str().unwrap_or("unknown host");
-    let message = format!("sync: push changes from {host}");
+    let mut message = format!("sync: push changes from {host}");
+    if let Some(commit_message) = &args.message {
+        message = commit_message.to_owned();
+    } else if let Some(commit_message) = &repo_config.commit_message {
+        message = commit_message.to_owned();
+    }
 
     let signature = repository.signature()?;
     let parent_commit = repository.head()?.peel_to_commit()?;
@@ -257,18 +286,16 @@ pub fn push_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig)
     let repository = git2::Repository::open(path)?;
     let mut remote = repository.find_remote(&repo_config.remote)?;
 
-    {
-        let local_branch = repository.find_branch(&repo_config.branch, BranchType::Local)?;
-        let head = repository.head()?.target();
-        if let Some(head) = head {
-            let upstream_branch = local_branch.upstream()?;
-            let upstream = upstream_branch.get().target();
-            if let Some(upstream) = upstream {
-                let (ahead, _behind) = repository.graph_ahead_behind(head, upstream)?;
-                if ahead < 1 {
-                    // NOTE: no changes to push
-                    return Ok(false);
-                }
+    let local_branch = repository.find_branch(&repo_config.branch, BranchType::Local)?;
+    let head = repository.head()?.target();
+    if let Some(head) = head {
+        let upstream_branch = local_branch.upstream()?;
+        let upstream = upstream_branch.get().target();
+        if let Some(upstream) = upstream {
+            let (ahead, _behind) = repository.graph_ahead_behind(head, upstream)?;
+            if ahead < 1 {
+                // NOTE: no changes to push
+                return Ok(false);
             }
         }
     }
