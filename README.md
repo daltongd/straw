@@ -131,13 +131,13 @@ In the overrides:
 - [ ] backups .. ? configurable with overrides `--backup`, `--no-backup`,
 `--restore-backup` / `--restore`, `--clear-backup` - should report the size and path
 - [ ] patches - ability to get a specific directory/file from any dotfiles repository
-- [ ] env vars ? also cached
-- [ ] add adopt ? - not sure if this is truly useful, but should be evaluated
 - [ ] use packages' directory structures when path folding
 - [ ] swappable profiles
 - [ ] per-device (hostname) ignores/overrides - instead add hostname to lua module
 - [x] replace json with lua for some added pizzaz
 - [x] resolve `~` in paths
+- [ ] env vars ? also cached (might not be feasible, stretch goal)
+- [ ] add adopt ? - not sure if this is truly useful, but should be evaluated
 
 - [x] additional console args for overrides (especially useful for initial clone)
 things like: ignores, or ability to specify packages to apply

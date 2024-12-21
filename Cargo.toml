@@ -27,3 +27,6 @@ mlua = { version = "0.10.2", features = [
 
 [target.'cfg(windows)'.dependencies]
 ssh2 = { version = "0.9.4", optional = true, features = ["openssl-on-win32"] }
+
+[target.'cfg(unix)'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
