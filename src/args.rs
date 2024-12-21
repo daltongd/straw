@@ -36,17 +36,17 @@ pub struct Args {
     #[clap(long, short)]
     pub message: Option<String>,
 
-    /// Pull .dotfiles from the repository. This selectively enables the `pull` action. E.g. when
+    /// Pull .dotfiles from the repository. This selectively enables the `pull` action, even if
     /// the Sync flag is not set
     #[clap(long, action)]
     pub pull: bool,
 
-    /// Push .dotfiles to the repository. This selectively enables the `push` action. E.g. when
+    /// Push .dotfiles to the repository. This selectively enables the `push` action, even if
     /// the Sync flag is not set
     #[clap(long, action)]
     pub push: bool,
 
-    /// Push .dotfiles to the repository. This selectively enables the `commit` action. E.g. when
+    /// Commit .dotfiles to the repository. This selectively enables the `commit` action, even if
     /// the Sync flag is not set
     #[clap(long, action)]
     pub commit: bool,
