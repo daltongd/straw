@@ -8,7 +8,7 @@ pub struct Args {
     #[clap(long, short, action)]
     pub preview: bool,
 
-    /// Synchronize the .dotfiles with a git repository.This performs Commit -> Pull -> Rebase -> Push
+    /// Synchronize the .dotfiles with a git repository. This performs Commit -> Pull -> Rebase/Merge -> Push
     #[clap(long, short, action)] // default_value = "true"
     pub sync: bool,
 
@@ -33,19 +33,24 @@ pub struct Args {
     #[clap(long, action)]
     pub rebase: bool,
 
-    /// Set the commit message
+    /// Set the commit message. Implies `--commit`
     #[clap(long, short)]
     pub message: Option<String>,
 
-    /// Pull .dotfiles from the repository. This selectively enables the Pull action. E.g. when
+    /// Pull .dotfiles from the repository. This selectively enables the `pull` action. E.g. when
     /// the Sync flag is not set
     #[clap(long, action)]
     pub pull: bool,
 
-    /// Push .dotfiles to the repository. This selectively enables the Push action. E.g. when
+    /// Push .dotfiles to the repository. This selectively enables the `push` action. E.g. when
     /// the Sync flag is not set
     #[clap(long, action)]
     pub push: bool,
+
+    /// Push .dotfiles to the repository. This selectively enables the `commit` action. E.g. when
+    /// the Sync flag is not set
+    #[clap(long, action)]
+    pub commit: bool,
 
     /// Show git status
     #[clap(long, action)]

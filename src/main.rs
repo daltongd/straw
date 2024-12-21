@@ -257,25 +257,25 @@ fn main() -> Result<()> {
                 }
             }
         }
-        if args.sync || args.message.is_some() {
+        if args.sync || args.commit || args.message.is_some() {
             // commit changes
             match straw::git::commit_changes(&args, &dotfiles_path, &repo_config) {
                 Ok(any_changes_committed) => {
                     if any_changes_committed {
-                        tracing::info!("Sync: Done committing local changes to .dotfiles")
+                        tracing::info!("Commit: Done committing local changes to .dotfiles")
                     } else {
-                        tracing::info!("Sync: No local changes to commit");
+                        tracing::info!("Commit: No local changes to commit");
                     }
                 }
                 Err(e) => tracing::error!(
-                    "Sync: Failed to commit the local changes to .dotfiles with error: {e:?}"
+                    "Commit: Failed to commit the local changes to .dotfiles with error: {e:?}"
                 ),
             }
         }
         if args.sync || args.pull {
             // update git repo
             match straw::git::update_dotfiles(&args, &dotfiles_path, &repo_config) {
-                Ok(_) => tracing::info!("Sync: .dotfiles updated"),
+                Ok(_) => tracing::info!("Update: .dotfiles updated"),
                 Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
             }
         }
@@ -283,13 +283,13 @@ fn main() -> Result<()> {
             match straw::git::push_changes(&args, &dotfiles_path, &repo_config) {
                 Ok(any_changes_pushed) => {
                     if any_changes_pushed {
-                        tracing::info!("Sync: local changes pushed to {}", repo_config.remote)
+                        tracing::info!("Push: local changes pushed to {}", repo_config.remote)
                     } else {
-                        tracing::info!("Sync: No local changes to push")
+                        tracing::info!("Push: No local changes to push")
                     }
                 }
                 Err(e) => {
-                    tracing::error!("Sync: Failed to push the local changes with error: {e:?}")
+                    tracing::error!("Push: Failed to push the local changes with error: {e:?}")
                 }
             }
         }
