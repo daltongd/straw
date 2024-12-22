@@ -338,8 +338,9 @@ fn main() -> Result<()> {
     tracing::info!("Packages found: {packages:?}");
 
     let cache_path = &dotfiles_path.join(".straw/.cache");
-    let cached_packages = Cache::read(cache_path)?;
-    tracing::info!("Cached packages found: {cached_packages:?}");
+    if let Ok(cached_packages) = Cache::read(cache_path) {
+        tracing::info!("Cached packages found: {cached_packages:?}");
+    }
 
     let mut cache = Cache::default();
     if !args.packages.is_empty() {
