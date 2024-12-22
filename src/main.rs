@@ -37,7 +37,7 @@ fn fold_and_apply(
                     ))?;
                     let to: PathBuf = PathBuf::from(&to).join(item_name);
                     let display_path = existing.path().display().to_string().replace("\\", "/");
-                    tracing::info!("{name}: {display_path} exists");
+                    tracing::trace!("{name}: {display_path} exists");
                     let dir = std::fs::read_dir(item.path())?;
                     fold_and_apply(cache, name, info, dir, to)?;
                 }
@@ -49,7 +49,7 @@ fn fold_and_apply(
             let from = item.path();
             let to = to.join(item.file_name());
 
-            tracing::info!("{name}: Creating symlink");
+            tracing::trace!("{name}: Creating symlink");
 
             straw::fs::remove_symlink_if_exists(info, &to)?;
             straw::fs::create_symlink(info, from, to.clone())?;
@@ -120,9 +120,9 @@ fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> 
 
     let package_dir = std::fs::read_dir(&package_path)?;
 
-    tracing::info!("Applying package: {name}");
+    tracing::trace!("Applying package: {name}");
     if info.config.ignores.contains(&name.into()) || info.args.ignore.contains(&name.into()) {
-        tracing::info!("Ignoring {name}");
+        tracing::trace!("Ignoring {name}");
         return Ok(());
     }
 
@@ -144,7 +144,6 @@ fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> 
 
 fn clear_deployed_packages(cache: &mut Cache, info: &StateInfo) -> Result<()> {
     for package in cache.get_deployed_packages() {
-        tracing::warn!("{package:?}");
         straw::fs::remove_symlink_if_exists(info, &PathBuf::from(&package.path))?;
     }
     cache.clear();
@@ -357,11 +356,11 @@ fn main() -> Result<()> {
     let cache_path = &dotfiles_path.join(".straw/.cache");
     let mut cache = Cache::default();
     if let Ok(cached_packages) = Cache::read(cache_path) {
-        tracing::info!("Cached packages found: {cached_packages:?}");
+        tracing::trace!("Cached packages found: {cached_packages:?}");
         cache = cached_packages;
     }
 
-    if args.clear {
+    if args.clear || args.apply {
         clear_deployed_packages(&mut cache, &info)?;
     }
 

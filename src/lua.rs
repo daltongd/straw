@@ -101,7 +101,7 @@ pub fn run_lua_config(dotfiles_path: &Path) -> Result<Config> {
 
     let config: Config = lua.from_value(config)?;
 
-    tracing::info!("{config:?}");
+    tracing::trace!("{config:?}");
 
     Ok(config)
 }

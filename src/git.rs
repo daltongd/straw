@@ -346,7 +346,7 @@ pub fn rebase(
 
 pub fn update_dotfiles(args: &Args, path: &PathBuf, repo_config: &RepositoryConfig) -> Result<()> {
     tracing::info!(
-        "Sync: updating .dotfiles from {} {}",
+        "Sync: Updating .dotfiles from {} {}",
         repo_config.remote,
         repo_config.branch
     );
