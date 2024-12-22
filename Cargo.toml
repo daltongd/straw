@@ -17,7 +17,7 @@ home = "0.5.9"
 git2 = "0.19.0"
 auth-git2 = "0.5.5"
 regex = "1.11.1"
-hostname = "0.4.0"
+whoami = "1.5.2"
 mlua = { version = "0.10.2", features = [
     "lua54",
     "vendored",

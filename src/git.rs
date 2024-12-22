@@ -248,9 +248,8 @@ pub fn commit_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfi
     }
     index.write()?;
 
-    let host = hostname::get()?;
-    let host = host.to_str().unwrap_or("unknown host");
-    let mut message = format!("sync: push changes from {host}");
+    let host = whoami::fallible::hostname()?;
+    let mut message = format!("Sync: push changes from {host}");
     if let Some(commit_message) = &args.message {
         message = commit_message.to_owned();
     } else if let Some(commit_message) = &repo_config.commit_message {

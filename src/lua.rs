@@ -9,11 +9,14 @@ use mlua::prelude::*;
 
 fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::prelude::LuaTable> {
     let module = get_or_create_module(lua, "straw")?;
-    let f = lua.create_function(move |_, ()| {
-        tracing::warn!("WORKS");
-        Ok(())
-    })?;
-    module.set("f", f)?;
+    // let f = lua.create_function(move |_, ()| {
+    //     tracing::warn!("WORKS");
+    //     Ok(())
+    // })?;
+    // module.set("f", f)?;
+
+    module.set("hostname", whoami::fallible::hostname()?)?;
+    module.set("user", whoami::fallible::username()?)?;
 
     #[cfg(windows)]
     module.set("platform", "windows")?;
@@ -86,6 +89,8 @@ pub fn run_lua_config(dotfiles_path: &Path) -> Result<Config> {
                     return nil
                 end
             end
+
+            find_module("test")
 
             local config = require("config")
             -- dump(config)
