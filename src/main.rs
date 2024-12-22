@@ -8,6 +8,7 @@ use clap::Parser;
 use regex::{Captures, Regex};
 use straw::{
     args::{Args, Commands},
+    cache::Cache,
     git::{MergeFlavor, RepositoryConfig},
     result::{Result, StrawError},
     state::StateInfo,
@@ -15,7 +16,13 @@ use straw::{
 
 const DOTFILES_DIR: &str = ".dotfiles/";
 
-fn fold_and_apply(name: &str, info: &StateInfo, from_dir: ReadDir, to: PathBuf) -> Result<()> {
+fn fold_and_apply(
+    cache: &mut Cache,
+    name: &str,
+    info: &StateInfo,
+    from_dir: ReadDir,
+    to: PathBuf,
+) -> Result<()> {
     for item in from_dir {
         let item = item?;
         let home_dir = std::fs::read_dir(&to)?;
@@ -32,7 +39,7 @@ fn fold_and_apply(name: &str, info: &StateInfo, from_dir: ReadDir, to: PathBuf) 
                     let display_path = existing.path().display().to_string().replace("\\", "/");
                     tracing::info!("{name}: {display_path} exists");
                     let dir = std::fs::read_dir(item.path())?;
-                    fold_and_apply(name, info, dir, to)?;
+                    fold_and_apply(cache, name, info, dir, to)?;
                 }
                 found_existing = true;
             }
@@ -45,14 +52,69 @@ fn fold_and_apply(name: &str, info: &StateInfo, from_dir: ReadDir, to: PathBuf) 
             tracing::info!("{name}: Creating symlink");
 
             straw::fs::remove_symlink_if_exists(info, &to)?;
-            straw::fs::create_symlink(info, from, to)?;
+            straw::fs::create_symlink(info, from.clone(), to)?;
+            cache.cache_package(name, &from);
         }
     }
 
     Ok(())
 }
 
-fn apply_package(name: &str, info: &StateInfo) -> Result<()> {
+fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> {
+    let path_override = &info.config.overrides[name];
+
+    let from = path_override.from.clone();
+    let to = path_override.to.clone();
+
+    // NOTE: replace the environment variables in paths `%env_var%` on windows or `$env_var`
+    // on unix systems
+    let to = info
+        .env_var_regex
+        .replace_all(&to, |captures: &Captures| {
+            if let Ok(value) = std::env::var(&captures[1]) {
+                value
+            } else {
+                tracing::error!("Couldn't resolve '{}' env var.", &captures[0]);
+                String::from(&captures[0])
+            }
+        })
+        .into_owned();
+    let to = to.replace("~", info.home_dir);
+
+    let display_from = from.replace("\\", "/");
+    let display_to = path_override.to.replace("\\", "/");
+    tracing::info!("\t\tFound override:\t\t\t{display_from} -> {display_to}");
+
+    let to = PathBuf::from_str(to.as_str())
+        .map_err(|e| StrawError::String(format!("Can't resolve path: {to:?}. {e:?}")))?;
+
+    straw::fs::remove_symlink_if_exists(info, &to)?;
+
+    if to.exists() && !to.is_symlink() {
+        let to = to.display().to_string().replace("\\", "/");
+        tracing::warn!("{to} already exists, ignoring");
+    }
+
+    // could be false if the file wasn't successfully removed
+    if !to.exists() || info.args.preview {
+        // check if the parent path exists
+        if let Some(parent) = to.parent() {
+            if !parent.exists() {
+                straw::fs::create_dir(parent)?;
+            }
+        } // else - `to` is root, ignore
+
+        let from_path: PathBuf = [info.home_dir, DOTFILES_DIR, name, from.as_str()]
+            .iter()
+            .collect();
+        straw::fs::create_symlink(info, from_path.clone(), to)?;
+        cache.cache_package(name, &from_path);
+    }
+
+    Ok(())
+}
+
+fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> {
     let package_path = &info.dotfiles_path;
     let package_path = package_path.join(name);
 
@@ -65,56 +127,9 @@ fn apply_package(name: &str, info: &StateInfo) -> Result<()> {
     }
 
     if info.config.overrides.contains_key(name) {
-        let path_override = &info.config.overrides[name];
-
-        let from = path_override.from.clone();
-        let to = path_override.to.clone();
-
-        // NOTE: replace the environment variables in paths `%env_var%` on windows or `$env_var`
-        // on unix systems
-        let to = info
-            .env_var_regex
-            .replace_all(&to, |captures: &Captures| {
-                if let Ok(value) = std::env::var(&captures[1]) {
-                    value
-                } else {
-                    tracing::error!("Couldn't resolve '{}' env var.", &captures[0]);
-                    String::from(&captures[0])
-                }
-            })
-            .into_owned();
-        let to = to.replace("~", info.home_dir);
-
-        let display_from = from.replace("\\", "/");
-        let display_to = path_override.to.replace("\\", "/");
-        tracing::info!("\t\tFound override:\t\t\t{display_from} -> {display_to}");
-
-        let to = PathBuf::from_str(to.as_str())
-            .map_err(|e| StrawError::String(format!("Can't resolve path: {to:?}. {e:?}")))?;
-
-        straw::fs::remove_symlink_if_exists(info, &to)?;
-
-        if to.exists() && !to.is_symlink() {
-            let to = to.display().to_string().replace("\\", "/");
-            tracing::warn!("{to} already exists, ignoring.");
-        }
-
-        // could be false if the file wasn't successfully removed
-        if !to.exists() || info.args.preview {
-            // check if the parent path exists
-            if let Some(parent) = to.parent() {
-                if !parent.exists() {
-                    straw::fs::create_dir(parent)?;
-                }
-            } // else - `to` is root, ignore
-
-            let from_path: PathBuf = [info.home_dir, DOTFILES_DIR, name, from.as_str()]
-                .iter()
-                .collect();
-            straw::fs::create_symlink(info, from_path, to)?;
-        }
+        apply_override(cache, name, info)?;
     } else {
-        fold_and_apply(name, info, package_dir, PathBuf::from(info.home_dir))?;
+        fold_and_apply(cache, name, info, package_dir, PathBuf::from(info.home_dir))?;
     }
 
     Ok(())
@@ -322,15 +337,21 @@ fn main() -> Result<()> {
     }
     tracing::info!("Packages found: {packages:?}");
 
+    let cache_path = &dotfiles_path.join(".straw/.cache");
+    let cached_packages = Cache::read(cache_path)?;
+    tracing::info!("Cached packages found: {cached_packages:?}");
+
+    let mut cache = Cache::default();
     if !args.packages.is_empty() {
         for package in &args.packages {
-            apply_package(package, &info)?;
+            apply_package(&mut cache, package, &info)?;
         }
     } else if args.apply {
         for package in &packages {
-            apply_package(package, &info)?;
+            apply_package(&mut cache, package, &info)?;
         }
     }
+    cache.save(cache_path)?;
 
     Ok(())
 }

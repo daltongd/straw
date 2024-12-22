@@ -10,6 +10,8 @@ pub enum StrawError {
     Regex(regex::Error),
     Git(git2::Error),
     Lua(mlua::Error),
+    TomlSerialize(toml::ser::Error),
+    TomlDeserialize(toml::de::Error),
 }
 
 impl Display for StrawError {
@@ -58,5 +60,17 @@ impl From<git2::Error> for StrawError {
 impl From<mlua::Error> for StrawError {
     fn from(value: mlua::Error) -> Self {
         StrawError::Lua(value)
+    }
+}
+
+impl From<toml::ser::Error> for StrawError {
+    fn from(value: toml::ser::Error) -> Self {
+        StrawError::TomlSerialize(value)
+    }
+}
+
+impl From<toml::de::Error> for StrawError {
+    fn from(value: toml::de::Error) -> Self {
+        StrawError::TomlDeserialize(value)
     }
 }
