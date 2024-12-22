@@ -35,4 +35,28 @@ impl Cache {
             path,
         })
     }
+
+    pub fn find_deployed_links(&self, package_name: &str) -> Vec<(usize, String)> {
+        let mut links = Vec::default();
+
+        for (i, package) in self.deployed.iter().enumerate() {
+            if package.name == package_name {
+                links.push((i, package.path.to_owned()));
+            }
+        }
+
+        links
+    }
+
+    pub fn get_deployed_packages(&self) -> &Vec<CachedPackage> {
+        &self.deployed
+    }
+
+    pub fn get_deployed_packages_mut(&mut self) -> &mut Vec<CachedPackage> {
+        &mut self.deployed
+    }
+
+    pub fn clear(&mut self) {
+        self.deployed.clear();
+    }
 }

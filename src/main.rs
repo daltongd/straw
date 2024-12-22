@@ -52,8 +52,8 @@ fn fold_and_apply(
             tracing::info!("{name}: Creating symlink");
 
             straw::fs::remove_symlink_if_exists(info, &to)?;
-            straw::fs::create_symlink(info, from.clone(), to)?;
-            cache.cache_package(name, &from);
+            straw::fs::create_symlink(info, from, to.clone())?;
+            cache.cache_package(name, &to);
         }
     }
 
@@ -107,8 +107,8 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
         let from_path: PathBuf = [info.home_dir, DOTFILES_DIR, name, from.as_str()]
             .iter()
             .collect();
-        straw::fs::create_symlink(info, from_path.clone(), to)?;
-        cache.cache_package(name, &from_path);
+        straw::fs::create_symlink(info, from_path, to.clone())?;
+        cache.cache_package(name, &to);
     }
 
     Ok(())
@@ -126,11 +126,28 @@ fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> 
         return Ok(());
     }
 
+    let deployed_links_for_package = cache.find_deployed_links(name);
+    let deployed_links = cache.get_deployed_packages_mut();
+    for (i, link) in deployed_links_for_package {
+        straw::fs::remove_symlink_if_exists(info, &PathBuf::from(link))?;
+        deployed_links.remove(i);
+    }
+
     if info.config.overrides.contains_key(name) {
         apply_override(cache, name, info)?;
     } else {
         fold_and_apply(cache, name, info, package_dir, PathBuf::from(info.home_dir))?;
     }
+
+    Ok(())
+}
+
+fn clear_deployed_packages(cache: &mut Cache, info: &StateInfo) -> Result<()> {
+    for package in cache.get_deployed_packages() {
+        tracing::warn!("{package:?}");
+        straw::fs::remove_symlink_if_exists(info, &PathBuf::from(&package.path))?;
+    }
+    cache.clear();
 
     Ok(())
 }
@@ -338,11 +355,16 @@ fn main() -> Result<()> {
     tracing::info!("Packages found: {packages:?}");
 
     let cache_path = &dotfiles_path.join(".straw/.cache");
+    let mut cache = Cache::default();
     if let Ok(cached_packages) = Cache::read(cache_path) {
         tracing::info!("Cached packages found: {cached_packages:?}");
+        cache = cached_packages;
     }
 
-    let mut cache = Cache::default();
+    if args.clear {
+        clear_deployed_packages(&mut cache, &info)?;
+    }
+
     if !args.packages.is_empty() {
         for package in &args.packages {
             apply_package(&mut cache, package, &info)?;
