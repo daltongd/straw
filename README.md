@@ -127,13 +127,14 @@ In the overrides:
 
 ## Todos
 
-- [ ] cache deployed symlinks and add `--clear` or a similar command
-- [ ] backups .. ? configurable with overrides `--backup`, `--no-backup`,
+- [x] cache deployed symlinks and add `--clear` or a similar command
+- [ ] backups .. ? configurable with overrides `-ackup`, `--no-backup`,
 `--restore-backup` / `--restore`, `--clear-backup` - should report the size and path
 - [ ] patches - ability to get a specific directory/file from any dotfiles repository
 - [ ] use packages' directory structures when path folding
 - [ ] swappable profiles
-- [ ] per-device (hostname) ignores/overrides - instead add hostname to lua module
+- [x] per-device (hostname) ignores/overrides - instead add hostname to lua module
+- [x] per-username ignores/overrides - instead add username to lua module
 - [x] replace json with lua for some added pizzaz
 - [x] resolve `~` in paths
 - [ ] env vars ? also cached (might not be feasible, stretch goal)
