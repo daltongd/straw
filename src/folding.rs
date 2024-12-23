@@ -1,6 +1,10 @@
-use std::{collections::HashMap, fs::DirEntry, path::Path};
+use std::{
+    collections::HashMap,
+    fs::DirEntry,
+    path::{Path, PathBuf},
+};
 
-use crate::result::Result;
+use crate::{result::Result, state::StateInfo};
 
 #[derive(Default, Debug)]
 pub struct PackageDirEntry {
@@ -8,19 +12,53 @@ pub struct PackageDirEntry {
     packages: Vec<String>,
 }
 
-pub fn fold(dotfiles_path: &Path) -> Result<HashMap<String, PackageDirEntry>> {
-    let mut result = HashMap::new();
+fn extract_paths(
+    entry: &PackageDirEntry,
+    current_path: PathBuf,
+    paths: &mut Vec<PathBuf>,
+) -> Result<()> {
+    if entry.packages.len() > 1 {
+        for (dir, entry) in &entry.children {
+            extract_paths(entry, current_path.join(dir), paths)?;
+        }
+        paths.push(current_path);
+    }
+
+    Ok(())
+}
+
+fn extract(map: &HashMap<String, PackageDirEntry>, dotfiles_path: PathBuf) -> Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+    let mut parent_path = dotfiles_path;
+    parent_path.pop();
+
+    for (dir, entry) in map {
+        let current_path =
+            PathBuf::from(parent_path.to_string_lossy().into_owned().as_str()).join(dir);
+        extract_paths(entry, current_path, &mut paths)?;
+    }
+
+    Ok(paths)
+}
+
+pub fn fold(dotfiles_path: &Path, info: &StateInfo) -> Result<Vec<PathBuf>> {
+    let mut map = HashMap::new();
     let dir = std::fs::read_dir(dotfiles_path)?;
 
     for entry in dir {
         let entry = entry?;
         let package_name = entry.file_name().to_string_lossy().into_owned();
-        if !package_name.starts_with(".") && entry.file_type()?.is_dir() {
-            fold_dir(&mut result, &entry, &package_name)?;
+        if !package_name.starts_with(".")
+            && !info.config.ignores.contains(&package_name)
+            && entry.file_type()?.is_dir()
+        {
+            fold_dir(&mut map, &entry, &package_name)?;
         }
     }
 
-    Ok(result)
+    let paths = extract(&map, dotfiles_path.to_path_buf())?;
+
+    Ok(paths)
 }
 
 fn fold_dir(

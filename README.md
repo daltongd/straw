@@ -133,7 +133,7 @@ In the overrides:
 .. we have the repo though, I think this is not necessary, would probably deprecate
 this todo item soon
 - [ ] patches - ability to get a specific directory/file from any dotfiles repository
-- [ ] use packages' directory structures when path folding
+- [x] use packages' directory structures when path folding
 - [ ] swappable profiles
 - [x] per-device (hostname) ignores/overrides - instead add hostname to lua module
 - [x] per-username ignores/overrides - instead add username to lua module

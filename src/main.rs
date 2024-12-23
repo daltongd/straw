@@ -364,6 +364,17 @@ fn main() -> Result<()> {
         clear_deployed_packages(&mut cache, &info)?;
     }
 
+    if args.apply {
+        let folded_paths = straw::folding::fold(&dotfiles_path, &info)?;
+        for path in folded_paths {
+            tracing::trace!("Folding: Found path {path:?}");
+            if !path.exists() {
+                tracing::trace!("Folding: Creating common directory at {path:?}");
+                std::fs::create_dir_all(path)?;
+            }
+        }
+    }
+
     if !args.packages.is_empty() {
         for package in &args.packages {
             apply_package(&mut cache, package, &info)?;
@@ -374,9 +385,6 @@ fn main() -> Result<()> {
         }
     }
     cache.save(cache_path)?;
-
-    let folded = straw::folding::fold(&dotfiles_path)?;
-    tracing::warn!("{folded:?}");
 
     Ok(())
 }
