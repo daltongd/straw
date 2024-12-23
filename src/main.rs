@@ -375,5 +375,8 @@ fn main() -> Result<()> {
     }
     cache.save(cache_path)?;
 
+    let folded = straw::folding::fold(&dotfiles_path)?;
+    tracing::warn!("{folded:?}");
+
     Ok(())
 }

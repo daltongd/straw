@@ -1,6 +1,7 @@
 pub mod args;
 pub mod cache;
 pub mod config;
+pub mod folding;
 pub mod fs;
 pub mod git;
 pub mod lua;

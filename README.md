@@ -130,6 +130,8 @@ In the overrides:
 - [x] cache deployed symlinks and add `--clear` or a similar command
 - [ ] backups .. ? configurable with overrides `-ackup`, `--no-backup`,
 `--restore-backup` / `--restore`, `--clear-backup` - should report the size and path
+.. we have the repo though, I think this is not necessary, would probably deprecate
+this todo item soon
 - [ ] patches - ability to get a specific directory/file from any dotfiles repository
 - [ ] use packages' directory structures when path folding
 - [ ] swappable profiles
