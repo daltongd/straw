@@ -12,35 +12,6 @@ pub struct PackageDirEntry {
     packages: Vec<String>,
 }
 
-fn extract_paths(
-    entry: &PackageDirEntry,
-    current_path: PathBuf,
-    paths: &mut Vec<PathBuf>,
-) -> Result<()> {
-    if entry.packages.len() > 1 {
-        for (dir, entry) in &entry.children {
-            extract_paths(entry, current_path.join(dir), paths)?;
-        }
-        paths.push(current_path);
-    }
-
-    Ok(())
-}
-
-fn extract(map: &HashMap<String, PackageDirEntry>, dotfiles_path: PathBuf) -> Result<Vec<PathBuf>> {
-    let mut paths = Vec::new();
-    let mut parent_path = dotfiles_path;
-    parent_path.pop();
-
-    for (dir, entry) in map {
-        let current_path =
-            PathBuf::from(parent_path.to_string_lossy().into_owned().as_str()).join(dir);
-        extract_paths(entry, current_path, &mut paths)?;
-    }
-
-    Ok(paths)
-}
-
 pub fn fold(dotfiles_path: &Path, info: &StateInfo) -> Result<Vec<PathBuf>> {
     let mut map = HashMap::new();
     let dir = std::fs::read_dir(dotfiles_path)?;
@@ -56,7 +27,7 @@ pub fn fold(dotfiles_path: &Path, info: &StateInfo) -> Result<Vec<PathBuf>> {
         }
     }
 
-    let paths = extract(&map, dotfiles_path.to_path_buf())?;
+    let paths = find_common_paths(&map, dotfiles_path.to_path_buf())?;
 
     Ok(paths)
 }
@@ -79,4 +50,36 @@ fn fold_dir(
     }
 
     Ok(())
+}
+
+fn extract_paths(
+    entry: &PackageDirEntry,
+    current_path: PathBuf,
+    paths: &mut Vec<PathBuf>,
+) -> Result<()> {
+    if entry.packages.len() > 1 {
+        for (dir, entry) in &entry.children {
+            extract_paths(entry, current_path.join(dir), paths)?;
+        }
+        paths.push(current_path);
+    }
+
+    Ok(())
+}
+
+fn find_common_paths(
+    map: &HashMap<String, PackageDirEntry>,
+    dotfiles_path: PathBuf,
+) -> Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+    let mut parent_path = dotfiles_path;
+    parent_path.pop();
+
+    for (dir, entry) in map {
+        let current_path =
+            PathBuf::from(parent_path.to_string_lossy().into_owned().as_str()).join(dir);
+        extract_paths(entry, current_path, &mut paths)?;
+    }
+
+    Ok(paths)
 }

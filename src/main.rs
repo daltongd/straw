@@ -364,6 +364,7 @@ fn main() -> Result<()> {
         clear_deployed_packages(&mut cache, &info)?;
     }
 
+    // prepare common directory structure before applying the packages onto the system
     if args.apply {
         let folded_paths = straw::folding::fold(&dotfiles_path, &info)?;
         for path in folded_paths {

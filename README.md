@@ -128,10 +128,6 @@ In the overrides:
 ## Todos
 
 - [x] cache deployed symlinks and add `--clear` or a similar command
-- [ ] backups .. ? configurable with overrides `-ackup`, `--no-backup`,
-`--restore-backup` / `--restore`, `--clear-backup` - should report the size and path
-.. we have the repo though, I think this is not necessary, would probably deprecate
-this todo item soon
 - [ ] patches - ability to get a specific directory/file from any dotfiles repository
 - [x] use packages' directory structures when path folding
 - [ ] swappable profiles
@@ -141,6 +137,7 @@ this todo item soon
 - [x] resolve `~` in paths
 - [ ] env vars ? also cached (might not be feasible, stretch goal)
 - [ ] add adopt ? - not sure if this is truly useful, but should be evaluated
+- [ ] dotfiles handling by replacing `dot-` with a period `.` ad in GNU Stow
 
 - [x] additional console args for overrides (especially useful for initial clone)
 things like: ignores, or ability to specify packages to apply
