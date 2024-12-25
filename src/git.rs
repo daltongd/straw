@@ -1,4 +1,5 @@
 use crate::args::Args;
+use crate::fs;
 use crate::result::{Result, StrawError};
 use git2::BranchType;
 use serde::{Deserialize, Serialize};
@@ -360,8 +361,8 @@ pub fn update_dotfiles(args: &Args, path: &PathBuf, repo_config: &RepositoryConf
     Ok(())
 }
 
-pub fn clone(args: &Args, url: &str, target_path: &Path) -> Result<()> {
-    let display_path = target_path.display().to_string().replace("\\", "/");
+pub fn clone(args: &Args, url: &str, target_path: &Path, home_dir: &str) -> Result<()> {
+    let display_path = fs::path_to_string(target_path, home_dir);
     tracing::info!("Clone: cloning {url} into {display_path}");
 
     if !args.preview {

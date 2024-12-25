@@ -9,6 +9,7 @@ use regex::{Captures, Regex};
 use straw::{
     args::{Args, Commands},
     cache::Cache,
+    fs,
     git::{MergeFlavor, RepositoryConfig},
     result::{Result, StrawError},
     state::StateInfo,
@@ -25,9 +26,9 @@ fn fold_and_apply(
 ) -> Result<()> {
     for item in from_dir {
         let item = item?;
-        let home_dir = std::fs::read_dir(&to)?;
+        let dir = std::fs::read_dir(&to)?;
         let mut found_existing = false;
-        for existing in home_dir {
+        for existing in dir {
             let existing = existing?;
             if item.file_name() == existing.file_name() && !existing.file_type()?.is_symlink() {
                 if existing.file_type()?.is_dir() {
@@ -36,7 +37,7 @@ fn fold_and_apply(
                         "Can't convert '{item_name:?}' to str.".into(),
                     ))?;
                     let to: PathBuf = PathBuf::from(&to).join(item_name);
-                    let display_path = existing.path().display().to_string().replace("\\", "/");
+                    let display_path = fs::path_to_string(&existing.path(), info.home_dir);
                     tracing::trace!("{name}: {display_path} exists");
                     let dir = std::fs::read_dir(item.path())?;
                     fold_and_apply(cache, name, info, dir, to)?;
@@ -52,7 +53,7 @@ fn fold_and_apply(
             tracing::trace!("{name}: Creating symlink");
 
             straw::fs::remove_symlink_if_exists(info, &to)?;
-            straw::fs::create_symlink(info, from, to.clone())?;
+            straw::fs::create_symlink(info, &from, &to.clone())?;
             cache.cache_package(name, &to);
         }
     }
@@ -81,8 +82,8 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
         .into_owned();
     let to = to.replace("~", info.home_dir);
 
-    let display_from = from.replace("\\", "/");
-    let display_to = path_override.to.replace("\\", "/");
+    let display_from = fs::path_to_string(&PathBuf::from(&from), info.home_dir);
+    let display_to = fs::path_to_string(&PathBuf::from(&to), info.home_dir);
     tracing::info!("\t\tFound override:\t\t\t{display_from} -> {display_to}");
 
     let to = PathBuf::from_str(to.as_str())
@@ -107,7 +108,7 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
         let from_path: PathBuf = [info.home_dir, DOTFILES_DIR, name, from.as_str()]
             .iter()
             .collect();
-        straw::fs::create_symlink(info, from_path, to.clone())?;
+        straw::fs::create_symlink(info, &from_path, &to.clone())?;
         cache.cache_package(name, &to);
     }
 
@@ -239,7 +240,7 @@ fn main() -> Result<()> {
     };
 
     if let Some(Commands::Clone { url }) = &args.command {
-        match straw::git::clone(&args, url, &dotfiles_path) {
+        match straw::git::clone(&args, url, &dotfiles_path, &home_dir) {
             Ok(_) => {
                 tracing::info!(
                     "Clone: successfully cloned {url} repository into {}",

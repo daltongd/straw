@@ -5,17 +5,16 @@ use crate::{
     state::StateInfo,
 };
 
-pub fn create_symlink(info: &StateInfo, from: PathBuf, to: PathBuf) -> Result<()> {
-    let display_from = from
-        .display()
+pub fn path_to_string(path: &Path, home_dir: &str) -> String {
+    path.display()
         .to_string()
         .replace("\\", "/")
-        .replace(info.home_dir, "~");
-    let display_to = to
-        .display()
-        .to_string()
-        .replace("\\", "/")
-        .replace(info.home_dir, "~");
+        .replace(home_dir, "~")
+}
+
+pub fn create_symlink(info: &StateInfo, from: &PathBuf, to: &PathBuf) -> Result<()> {
+    let display_from = path_to_string(from, info.home_dir);
+    let display_to = path_to_string(to, info.home_dir);
     if from.is_dir() {
         if !info.args.preview {
             #[cfg(windows)]
@@ -45,11 +44,7 @@ pub fn create_symlink(info: &StateInfo, from: PathBuf, to: PathBuf) -> Result<()
 
 pub fn remove_symlink_if_exists(info: &StateInfo, link_path: &PathBuf) -> Result<()> {
     if link_path.exists() && link_path.is_symlink() {
-        let display_path = link_path
-            .display()
-            .to_string()
-            .replace("\\", "/")
-            .replace(info.home_dir, "~");
+        let display_path = path_to_string(link_path, info.home_dir);
         tracing::info!("Removing the existing link:\t{display_path}");
         if !info.args.preview {
             if link_path.is_dir() {
