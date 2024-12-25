@@ -137,7 +137,8 @@ In the overrides:
 - [x] resolve `~` in paths
 - [ ] env vars ? also cached (might not be feasible, stretch goal)
 - [ ] add adopt ? - not sure if this is truly useful, but should be evaluated
-- [ ] dotfiles handling by replacing `dot-` with a period `.` ad in GNU Stow
+- [ ] additional option for dotfiles handling by replacing `dot-` with a period `.`
+as in GNU Stow
 
 - [x] additional console args for overrides (especially useful for initial clone)
 things like: ignores, or ability to specify packages to apply
