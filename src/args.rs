@@ -20,7 +20,7 @@ pub struct Args {
     #[clap(long, short, action)]
     pub clear: bool,
 
-    /// Specify packages to apply. Implies `--apply`
+    /// Specify packages to apply. Implies `--apply`, overrides ignores from the config
     #[clap(long, num_args(1..))]
     pub packages: Vec<String>,
 

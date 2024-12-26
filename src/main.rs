@@ -121,7 +121,9 @@ fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> 
     let package_dir = std::fs::read_dir(&package_path)?;
 
     tracing::trace!("Applying package: {name}");
-    if info.config.ignores.contains(&name.into()) || info.args.ignore.contains(&name.into()) {
+    if (info.args.packages.is_empty() && info.config.ignores.contains(&name.into()))
+        || info.args.ignore.contains(&name.into())
+    {
         tracing::trace!("Ignoring {name}");
         return Ok(());
     }
