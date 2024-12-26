@@ -5,6 +5,8 @@ use git2::BranchType;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+// TODO: move remote and branch (and flavor?) to `GitDefaults`
+// TODO: add optional overrides as a toml-based `.git-overrides`
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub struct RepositoryConfig {
     pub remote: String,
