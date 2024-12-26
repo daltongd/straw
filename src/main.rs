@@ -83,7 +83,7 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
 
     let display_from = straw::fs::path_to_string(&PathBuf::from(&from), info.home_dir);
     let display_to = straw::fs::path_to_string(&PathBuf::from(&to), info.home_dir);
-    tracing::info!("\t\tFound override:\t\t\t{display_from} -> {display_to}");
+    tracing::info!("Found override:\t\t\t{display_from} -> {display_to}");
 
     let to = PathBuf::from_str(to.as_str())
         .map_err(|e| StrawError::String(format!("Can't resolve path: {to:?}. {e:?}")))?;

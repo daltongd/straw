@@ -6,10 +6,11 @@ use crate::{
 };
 
 pub fn path_to_string(path: &Path, home_dir: &str) -> String {
+    let home_dir = home_dir.replace("\\", "/");
     path.display()
         .to_string()
         .replace("\\", "/")
-        .replace(home_dir, "~")
+        .replace(&home_dir, "~")
 }
 
 pub fn create_symlink(info: &StateInfo, from: &PathBuf, to: &PathBuf) -> Result<()> {
