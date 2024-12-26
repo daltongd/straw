@@ -9,7 +9,6 @@ use regex::{Captures, Regex};
 use straw::{
     args::{Args, Commands},
     cache::Cache,
-    fs,
     git::{MergeFlavor, RepositoryConfig},
     result::{Result, StrawError},
     state::StateInfo,
@@ -37,7 +36,7 @@ fn fold_and_apply(
                         "Can't convert '{item_name:?}' to str.".into(),
                     ))?;
                     let to: PathBuf = PathBuf::from(&to).join(item_name);
-                    let display_path = fs::path_to_string(&existing.path(), info.home_dir);
+                    let display_path = straw::fs::path_to_string(&existing.path(), info.home_dir);
                     tracing::trace!("{name}: {display_path} exists");
                     let dir = std::fs::read_dir(item.path())?;
                     fold_and_apply(cache, name, info, dir, to)?;
@@ -82,8 +81,8 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
         .into_owned();
     let to = to.replace("~", info.home_dir);
 
-    let display_from = fs::path_to_string(&PathBuf::from(&from), info.home_dir);
-    let display_to = fs::path_to_string(&PathBuf::from(&to), info.home_dir);
+    let display_from = straw::fs::path_to_string(&PathBuf::from(&from), info.home_dir);
+    let display_to = straw::fs::path_to_string(&PathBuf::from(&to), info.home_dir);
     tracing::info!("\t\tFound override:\t\t\t{display_from} -> {display_to}");
 
     let to = PathBuf::from_str(to.as_str())
