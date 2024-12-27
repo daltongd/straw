@@ -1,8 +1,4 @@
-use std::{
-    fs::ReadDir,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::{fs::ReadDir, path::PathBuf, str::FromStr};
 
 use clap::Parser;
 use regex::{Captures, Regex};
@@ -168,17 +164,8 @@ fn find_home() -> Result<String> {
 }
 
 // TODO: evaluate if this shouldn't be replaced with some other file or console arguments
-fn resolve_repo_config(args: &Args, dotfiles_path: &Path) -> Result<RepositoryConfig> {
-    let mut repo_config = straw::git::RepositoryConfig {
-        remote: String::from("origin"),
-        branch: String::from("main"),
-        merge_flavor: Some(MergeFlavor::default()),
-        commit_message: None,
-    };
-
-    if let Ok(config) = straw::lua::run_lua_config(dotfiles_path) {
-        repo_config = config.git;
-    }
+fn resolve_repo_config(lua: &mlua::Lua, args: &Args) -> Result<RepositoryConfig> {
+    let mut repo_config = straw::lua::run_lua_git_config(lua)?;
 
     // apply args overrides
     if let Some(branch) = &args.branch {
@@ -232,7 +219,9 @@ fn main() -> Result<()> {
     let home_dir = find_home()?;
     let dotfiles_path: PathBuf = [&home_dir, DOTFILES_DIR].iter().collect();
 
-    let repo_config = match resolve_repo_config(&args, &dotfiles_path) {
+    let lua = straw::lua::create_lua_runtime(&dotfiles_path)?;
+
+    let repo_config = match resolve_repo_config(&lua, &args) {
         Ok(repo_config) => repo_config,
         Err(e) => {
             tracing::error!("{e}");
@@ -333,7 +322,7 @@ fn main() -> Result<()> {
         }
     }
 
-    let config = straw::lua::run_lua_config(&dotfiles_path)?;
+    let config = straw::lua::run_lua_config(&lua)?;
 
     let dotfiles = std::fs::read_dir(&dotfiles_path)?;
     let info = StateInfo {

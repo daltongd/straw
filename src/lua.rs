@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::{
     config::Config,
+    git::RepositoryConfig,
     result::{Result, StrawError},
 };
 
@@ -45,13 +46,67 @@ fn setup_lua_path(lua: &mlua::Lua, dotfiles_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn run_lua_config(dotfiles_path: &Path) -> Result<Config> {
+pub fn create_lua_runtime(dotfiles_path: &Path) -> Result<Lua> {
     let lua = Lua::new();
-
     setup_lua_path(&lua, dotfiles_path)?;
-
     create_straw_module(&lua)?;
+    Ok(lua)
+}
 
+pub fn run_lua_git_config(lua: &Lua) -> Result<RepositoryConfig> {
+    let config = lua
+        .load(
+            r#"
+            function dump(tbl, indent)
+                indent = indent or 0
+                for k, v in pairs(tbl) do
+                    print(string.rep(" ", indent) .. tostring(k) .. ":")
+                    if type(v) == "table" then
+                        dump(v, indent + 2)
+                    else
+                        print(string.rep(" ", indent + 2) .. tostring(v))
+                    end
+                end
+            end
+
+            function check_module(name)
+                if package.loaded[name] then
+                    return true
+                else
+                    for _, searcher in ipairs(package.searchers or package.loaders) do
+                        local loader = searcher(name)
+                        if type(loader) == "function" then
+                            package.preload[name] = loader
+                            return true
+                        end
+                    end
+                    return false
+                end
+            end
+
+            function find_module(name)
+                if check_module(name) then
+                    return require(name)
+                else
+                    return nil
+                end
+            end
+
+            local config = find_module("git")
+            -- dump(config)
+            return config
+        "#,
+        )
+        .eval()?;
+
+    let config: Option<RepositoryConfig> = lua.from_value(config)?;
+
+    tracing::trace!("Git config: {config:?}");
+
+    Ok(config.unwrap_or_default())
+}
+
+pub fn run_lua_config(lua: &Lua) -> Result<Config> {
     let config = lua
         .load(
             r#"
@@ -92,18 +147,18 @@ pub fn run_lua_config(dotfiles_path: &Path) -> Result<Config> {
 
             find_module("test")
 
-            local config = require("config")
+            local config = find_module("config")
             -- dump(config)
             return config
         "#,
         )
         .eval()?;
 
-    let config: Config = lua.from_value(config)?;
+    let config: Option<Config> = lua.from_value(config)?;
 
     tracing::trace!("{config:?}");
 
-    Ok(config)
+    Ok(config.unwrap_or_default())
 }
 
 // https://github.com/wez/wezterm/blob/main/config/src/lua.rs#L33

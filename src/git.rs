@@ -7,12 +7,23 @@ use std::path::{Path, PathBuf};
 
 // TODO: move remote and branch (and flavor?) to `GitDefaults`
 // TODO: add optional overrides as a toml-based `.git-overrides`
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RepositoryConfig {
     pub remote: String,
     pub branch: String,
     pub merge_flavor: Option<MergeFlavor>,
     pub commit_message: Option<String>,
+}
+
+impl Default for RepositoryConfig {
+    fn default() -> Self {
+        Self {
+            remote: "origin".into(),
+            branch: "main".into(),
+            merge_flavor: Some(Default::default()), // we want to default to Rebase
+            commit_message: Default::default(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
@@ -252,7 +263,7 @@ pub fn commit_changes(args: &Args, path: &PathBuf, repo_config: &RepositoryConfi
     index.write()?;
 
     let host = whoami::fallible::hostname()?;
-    let mut message = format!("Sync: push changes from {host}");
+    let mut message = format!("sync: push changes from {host}");
     if let Some(commit_message) = &args.message {
         message = commit_message.to_owned();
     } else if let Some(commit_message) = &repo_config.commit_message {
