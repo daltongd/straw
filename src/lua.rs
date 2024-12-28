@@ -11,10 +11,10 @@ use mlua::prelude::*;
 fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::Table> {
     let module = get_or_create_module(lua, "straw")?;
 
-    let dump: mlua::Function = lua
+    let inspect: mlua::Function = lua
         .load(
             r#"
-                function dump(tbl, indent)
+                function inspect(tbl, indent)
                     indent = indent or 0
                     for k, v in pairs(tbl) do
                         print(string.rep(" ", indent) .. tostring(k) .. ":")
@@ -26,11 +26,11 @@ fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::Table> {
                     end
                 end
 
-                return dump
+                return inspect
             "#,
         )
         .eval()?;
-    module.set("dump", dump)?;
+    module.set("inspect", inspect)?;
 
     let find_module: mlua::Function = lua
         .load(
