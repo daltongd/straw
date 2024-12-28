@@ -1,12 +1,12 @@
 use std::path::Path;
 
+use mlua::LuaSerdeExt;
+
 use crate::{
     config::Config,
     git::RepositoryConfig,
     result::{Result, StrawError},
 };
-
-use mlua::prelude::*;
 
 fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::Table> {
     let module = get_or_create_module(lua, "straw")?;
@@ -84,14 +84,14 @@ fn setup_lua_path(lua: &mlua::Lua, dotfiles_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn create_lua_runtime(dotfiles_path: &Path) -> Result<Lua> {
-    let lua = Lua::new();
+pub fn create_lua_runtime(dotfiles_path: &Path) -> Result<mlua::Lua> {
+    let lua = mlua::Lua::new();
     setup_lua_path(&lua, dotfiles_path)?;
     create_straw_module(&lua)?;
     Ok(lua)
 }
 
-pub fn run_lua_git_config(lua: &Lua) -> Result<RepositoryConfig> {
+pub fn run_lua_git_config(lua: &mlua::Lua) -> Result<RepositoryConfig> {
     let config = lua
         .load(
             r#"
@@ -110,7 +110,7 @@ pub fn run_lua_git_config(lua: &Lua) -> Result<RepositoryConfig> {
     Ok(config.unwrap_or_default())
 }
 
-pub fn run_lua_config(lua: &Lua) -> Result<Config> {
+pub fn run_lua_config(lua: &mlua::Lua) -> Result<Config> {
     let config = lua
         .load(
             r#"
@@ -131,7 +131,7 @@ pub fn run_lua_config(lua: &Lua) -> Result<Config> {
 }
 
 // https://github.com/wez/wezterm/blob/main/config/src/lua.rs#L33
-pub fn get_or_create_module(lua: &Lua, name: &str) -> Result<mlua::Table> {
+pub fn get_or_create_module(lua: &mlua::Lua, name: &str) -> Result<mlua::Table> {
     let globals = lua.globals();
     let package: mlua::Table = globals.get("package")?;
     let loaded: mlua::Table = package.get("loaded")?;
@@ -154,7 +154,7 @@ pub fn get_or_create_module(lua: &Lua, name: &str) -> Result<mlua::Table> {
 }
 
 // https://github.com/wez/wezterm/blob/main/config/src/lua.rs#L55
-pub fn get_or_create_sub_module(lua: &Lua, name: &str) -> Result<mlua::Table> {
+pub fn get_or_create_sub_module(lua: &mlua::Lua, name: &str) -> Result<mlua::Table> {
     let wezterm_mod = get_or_create_module(lua, "wezterm")?;
     let sub = wezterm_mod.get(name)?;
     match sub {
