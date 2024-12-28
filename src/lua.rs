@@ -8,13 +8,51 @@ use crate::{
 
 use mlua::prelude::*;
 
-fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::prelude::LuaTable> {
+fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::Table> {
     let module = get_or_create_module(lua, "straw")?;
-    // let f = lua.create_function(move |_, ()| {
-    //     tracing::warn!("WORKS");
-    //     Ok(())
-    // })?;
-    // module.set("f", f)?;
+
+    let dump: mlua::Function = lua
+        .load(
+            r#"
+                function dump(tbl, indent)
+                    indent = indent or 0
+                    for k, v in pairs(tbl) do
+                        print(string.rep(" ", indent) .. tostring(k) .. ":")
+                        if type(v) == "table" then
+                            dump(v, indent + 2)
+                        else
+                            print(string.rep(" ", indent + 2) .. tostring(v))
+                        end
+                    end
+                end
+
+                return dump
+            "#,
+        )
+        .eval()?;
+    module.set("dump", dump)?;
+
+    let find_module: mlua::Function = lua
+        .load(
+            r#"
+                function (name)
+                    if package.loaded[name] then
+                        return require(name)
+                    else
+                        for _, searcher in ipairs(package.searchers or package.loaders) do
+                            local loader = searcher(name)
+                            if type(loader) == "function" then
+                                package.preload[name] = loader
+                                return require(name)
+                            end
+                        end
+                        return nil
+                    end
+                end
+            "#,
+        )
+        .eval()?;
+    module.set("find_module", find_module)?;
 
     module.set("hostname", whoami::fallible::hostname()?)?;
     module.set("user", whoami::fallible::username()?)?;
@@ -57,42 +95,8 @@ pub fn run_lua_git_config(lua: &Lua) -> Result<RepositoryConfig> {
     let config = lua
         .load(
             r#"
-            function dump(tbl, indent)
-                indent = indent or 0
-                for k, v in pairs(tbl) do
-                    print(string.rep(" ", indent) .. tostring(k) .. ":")
-                    if type(v) == "table" then
-                        dump(v, indent + 2)
-                    else
-                        print(string.rep(" ", indent + 2) .. tostring(v))
-                    end
-                end
-            end
-
-            function check_module(name)
-                if package.loaded[name] then
-                    return true
-                else
-                    for _, searcher in ipairs(package.searchers or package.loaders) do
-                        local loader = searcher(name)
-                        if type(loader) == "function" then
-                            package.preload[name] = loader
-                            return true
-                        end
-                    end
-                    return false
-                end
-            end
-
-            function find_module(name)
-                if check_module(name) then
-                    return require(name)
-                else
-                    return nil
-                end
-            end
-
-            local config = find_module("git")
+            local straw = require("straw");
+            local config = straw.find_module("git")
             -- dump(config)
             return config
         "#,
@@ -110,44 +114,9 @@ pub fn run_lua_config(lua: &Lua) -> Result<Config> {
     let config = lua
         .load(
             r#"
-            function dump(tbl, indent)
-                indent = indent or 0
-                for k, v in pairs(tbl) do
-                    print(string.rep(" ", indent) .. tostring(k) .. ":")
-                    if type(v) == "table" then
-                        dump(v, indent + 2)
-                    else
-                        print(string.rep(" ", indent + 2) .. tostring(v))
-                    end
-                end
-            end
-
-            function check_module(name)
-                if package.loaded[name] then
-                    return true
-                else
-                    for _, searcher in ipairs(package.searchers or package.loaders) do
-                        local loader = searcher(name)
-                        if type(loader) == "function" then
-                            package.preload[name] = loader
-                            return true
-                        end
-                    end
-                    return false
-                end
-            end
-
-            function find_module(name)
-                if check_module(name) then
-                    return require(name)
-                else
-                    return nil
-                end
-            end
-
-            find_module("test")
-
-            local config = find_module("config")
+            local straw = require("straw");
+            -- local config = straw.find_module("test")
+            local config = straw.find_module("config")
             -- dump(config)
             return config
         "#,
