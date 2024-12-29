@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
+use serde::{Deserialize, Serialize};
 
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug, Clone, Serialize, Deserialize, mlua::FromLua)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 pub struct Args {
@@ -72,7 +73,7 @@ pub struct Args {
 }
 
 // TODO: add optional path override to Clone command
-#[derive(Subcommand, Debug, Clone)]
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize, mlua::FromLua)]
 pub enum Commands {
     /// Clone a git repository into ~/.dotfiles
     Clone {

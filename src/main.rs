@@ -219,7 +219,7 @@ fn main() -> Result<()> {
     let home_dir = find_home()?;
     let dotfiles_path: PathBuf = [&home_dir, DOTFILES_DIR].iter().collect();
 
-    let lua = straw::lua::create_lua_runtime(&dotfiles_path)?;
+    let lua = straw::lua::create_lua_runtime(&dotfiles_path, &args)?;
 
     let repo_config = match resolve_repo_config(&lua, &args) {
         Ok(repo_config) => repo_config,

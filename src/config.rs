@@ -18,6 +18,7 @@ pub struct Config {
     #[serde(default = "default_ignores")]
     pub ignores: Vec<String>,
 }
+
 fn default_overrides() -> HashMap<String, Override> {
     HashMap::default()
 }

@@ -3,12 +3,13 @@ use std::path::Path;
 use mlua::LuaSerdeExt;
 
 use crate::{
+    args::Args,
     config::Config,
     git::RepositoryConfig,
     result::{Result, StrawError},
 };
 
-fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::Table> {
+fn create_straw_module(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
     let module = get_or_create_module(lua, "straw")?;
 
     let inspect: mlua::Function = lua
@@ -19,7 +20,7 @@ fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::Table> {
                     for k, v in pairs(tbl) do
                         print(string.rep(" ", indent) .. tostring(k) .. ":")
                         if type(v) == "table" then
-                            dump(v, indent + 2)
+                            inspect(v, indent + 2)
                         else
                             print(string.rep(" ", indent + 2) .. tostring(v))
                         end
@@ -54,6 +55,8 @@ fn create_straw_module(lua: &mlua::Lua) -> Result<mlua::Table> {
         .eval()?;
     module.set("find_module", find_module)?;
 
+    module.set("args", lua.to_value(&args)?)?;
+
     module.set("hostname", whoami::fallible::hostname()?)?;
     module.set("user", whoami::fallible::username()?)?;
 
@@ -84,10 +87,10 @@ fn setup_lua_path(lua: &mlua::Lua, dotfiles_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn create_lua_runtime(dotfiles_path: &Path) -> Result<mlua::Lua> {
+pub fn create_lua_runtime(dotfiles_path: &Path, args: &Args) -> Result<mlua::Lua> {
     let lua = mlua::Lua::new();
     setup_lua_path(&lua, dotfiles_path)?;
-    create_straw_module(&lua)?;
+    create_straw_module(&lua, args)?;
     Ok(lua)
 }
 
