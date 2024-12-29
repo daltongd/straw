@@ -48,7 +48,7 @@ fn fold_and_apply(
             tracing::trace!("{name}: Creating symlink");
 
             straw::fs::remove_symlink_if_exists(info, &to)?;
-            straw::fs::create_symlink(info, &from, &to.clone())?;
+            straw::fs::create_symlink(info.args.preview, info.home_dir, &from, &to.clone())?;
             cache.cache_package(name, &to);
         }
     }
@@ -103,7 +103,7 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
         let from_path: PathBuf = [info.home_dir, DOTFILES_DIR, name, from.as_str()]
             .iter()
             .collect();
-        straw::fs::create_symlink(info, &from_path, &to.clone())?;
+        straw::fs::create_symlink(info.args.preview, info.home_dir, &from_path, &to.clone())?;
         cache.cache_package(name, &to);
     }
 
@@ -229,61 +229,113 @@ fn main() -> Result<()> {
         }
     };
 
-    if let Some(Commands::Clone { url }) = &args.command {
-        match straw::git::clone(&args, url, &dotfiles_path, &home_dir) {
-            Ok(_) => {
-                tracing::info!(
-                    "Clone: successfully cloned {url} repository into {}",
-                    dotfiles_path.display()
-                );
-            }
-            Err(e) => {
-                tracing::error!("Error cloning the repository: {e}");
-                return Err(e);
-            }
-        }
-    } else if let Some(Commands::Init { url }) = &args.command {
-        match straw::git::init(&dotfiles_path, url.to_owned()) {
-            Ok(_) => {
-                tracing::info!(
-                    "Clone: successfully initialized a repository in {}",
-                    dotfiles_path.display()
-                );
-                if let Some(origin_url) = url {
-                    tracing::info!("Clone: origin url set to {origin_url}");
+    if let Some(command) = &args.command {
+        match command {
+            Commands::Clone { url } => {
+                match straw::git::clone(&args, url, &dotfiles_path, &home_dir) {
+                    Ok(_) => {
+                        tracing::info!(
+                            "Clone: successfully cloned {url} repository into {}",
+                            dotfiles_path.display()
+                        );
+                    }
+                    Err(e) => {
+                        tracing::error!("Error cloning the repository: {e}");
+                        return Err(e);
+                    }
                 }
             }
-            Err(e) => {
-                tracing::error!("Error initializng the repository: {e}");
-                return Err(e);
+            Commands::Init { url } => match straw::git::init(&dotfiles_path, url.to_owned()) {
+                Ok(_) => {
+                    tracing::info!(
+                        "Clone: successfully initialized a repository in {}",
+                        dotfiles_path.display()
+                    );
+                    if let Some(origin_url) = url {
+                        tracing::info!("Clone: origin url set to {origin_url}");
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Error initializng the repository: {e}");
+                    return Err(e);
+                }
+            },
+            Commands::Status => {
+                let status = straw::git::get_status(&dotfiles_path)?;
+                tracing::info!("Sync: Status");
+                if status.is_empty() {
+                    tracing::info!("Status: Working directory clean.");
+                } else {
+                    for (path, file_status) in status {
+                        let file_status = match file_status {
+                            git2::Status::INDEX_NEW => "new",
+                            git2::Status::INDEX_MODIFIED => "modified",
+                            git2::Status::INDEX_DELETED => "deleted",
+                            git2::Status::INDEX_RENAMED => "renamed",
+                            git2::Status::INDEX_TYPECHANGE => "type change",
+                            git2::Status::WT_NEW => "new",
+                            git2::Status::WT_MODIFIED => "modified",
+                            git2::Status::WT_DELETED => "deleted",
+                            git2::Status::WT_RENAMED => "renamed",
+                            git2::Status::WT_TYPECHANGE => "type change",
+                            git2::Status::CONFLICTED => "conflict",
+                            _ => continue,
+                        };
+                        tracing::info!("Status: {} ({})", path, file_status)
+                    }
+                }
+            }
+            Commands::Adopt { path } => {
+                let path = path.replace("~", &home_dir.replace("\\", "/"));
+                let source_path = PathBuf::from(&path);
+                if let Some(dir_name) = source_path.file_stem().unwrap_or_default().to_str() {
+                    let relative_to_home = source_path.strip_prefix(&home_dir).map_err(|_| {
+                        StrawError::String(
+                            "Adopt: only paths under the home directory are supported".into(),
+                        )
+                    })?;
+
+                    let package_name = if let Some(dir_name_stripped) = dir_name.strip_prefix(".") {
+                        dir_name_stripped
+                    } else {
+                        dir_name
+                    };
+
+                    if dotfiles_path.join(package_name).exists() {
+                        return Err(StrawError::String(format!(
+                            "Adopt: package named {package_name} already exists."
+                        )));
+                    }
+
+                    let target_path = dotfiles_path.join(package_name).join(relative_to_home);
+
+                    let display_source_path = straw::fs::sanitize_path(&path, &home_dir);
+                    let display_target_path = straw::fs::path_to_string(&target_path, &home_dir);
+                    tracing::info!(
+                        "Adopt: adopting {display_source_path} into {display_target_path}"
+                    );
+
+                    if !args.preview {
+                        if let Some(parent_dir) = target_path.parent() {
+                            if !parent_dir.exists() {
+                                std::fs::create_dir_all(parent_dir)?;
+                            }
+                        }
+                        std::fs::rename(&source_path, &target_path)?;
+                    }
+
+                    // `target_path` becomes `from` and `source_path` becomes `to`, since we just did the rename
+                    straw::fs::create_symlink(args.preview, &home_dir, &target_path, &source_path)?;
+
+                    tracing::info!("Adopt: successfully adopted {:?}", package_name);
+                } else {
+                    return Err(StrawError::String(
+                        "Adopt: unknown error. Couldn't determine the package name.".into(),
+                    ));
+                }
             }
         }
     } else {
-        if args.status {
-            let status = straw::git::get_status(&dotfiles_path)?;
-            tracing::info!("Sync: Status");
-            if status.is_empty() {
-                tracing::info!("Status: Working directory clean.");
-            } else {
-                for (path, file_status) in status {
-                    let file_status = match file_status {
-                        git2::Status::INDEX_NEW => "new",
-                        git2::Status::INDEX_MODIFIED => "modified",
-                        git2::Status::INDEX_DELETED => "deleted",
-                        git2::Status::INDEX_RENAMED => "renamed",
-                        git2::Status::INDEX_TYPECHANGE => "type change",
-                        git2::Status::WT_NEW => "new",
-                        git2::Status::WT_MODIFIED => "modified",
-                        git2::Status::WT_DELETED => "deleted",
-                        git2::Status::WT_RENAMED => "renamed",
-                        git2::Status::WT_TYPECHANGE => "type change",
-                        git2::Status::CONFLICTED => "conflict",
-                        _ => continue,
-                    };
-                    tracing::info!("Status: {} ({})", path, file_status)
-                }
-            }
-        }
         if args.sync || args.commit || args.message.is_some() {
             // commit changes
             match straw::git::commit_changes(&args, &dotfiles_path, &repo_config) {
@@ -320,63 +372,63 @@ fn main() -> Result<()> {
                 }
             }
         }
-    }
 
-    let config = straw::lua::run_lua_config(&lua)?;
+        let config = straw::lua::run_lua_config(&lua)?;
 
-    let dotfiles = std::fs::read_dir(&dotfiles_path)?;
-    let info = StateInfo {
-        home_dir: &home_dir,
-        dotfiles_path: dotfiles_path.clone(),
-        args: &args,
-        env_var_regex,
-        config,
-    };
+        let info = StateInfo {
+            home_dir: &home_dir,
+            dotfiles_path: dotfiles_path.clone(),
+            args: &args,
+            env_var_regex,
+            config,
+        };
 
-    let mut packages = Vec::new();
-    for path in dotfiles {
-        let path = path?;
-        if let Some(item_name) = path.file_name().to_str() {
-            if path.file_type()?.is_dir() && !item_name.starts_with(".") {
-                packages.push(item_name.to_owned());
+        let mut packages = Vec::new();
+        let dotfiles = std::fs::read_dir(&dotfiles_path)?;
+        for path in dotfiles {
+            let path = path?;
+            if let Some(item_name) = path.file_name().to_str() {
+                if path.file_type()?.is_dir() && !item_name.starts_with(".") {
+                    packages.push(item_name.to_owned());
+                }
             }
         }
-    }
-    tracing::info!("Packages found: {packages:?}");
+        tracing::info!("Packages found: {packages:?}");
 
-    let cache_path = &dotfiles_path.join(".straw/.cache");
-    let mut cache = Cache::default();
-    if let Ok(cached_packages) = Cache::read(cache_path) {
-        tracing::trace!("Cached packages found: {cached_packages:?}");
-        cache = cached_packages;
-    }
+        let cache_path = &dotfiles_path.join(".straw/.cache");
+        let mut cache = Cache::default();
+        if let Ok(cached_packages) = Cache::read(cache_path) {
+            tracing::trace!("Cached packages found: {cached_packages:?}");
+            cache = cached_packages;
+        }
 
-    if args.clear || args.apply {
-        clear_deployed_packages(&mut cache, &info)?;
-    }
+        if args.clear || args.apply {
+            clear_deployed_packages(&mut cache, &info)?;
+        }
 
-    // prepare common directory structure before applying the packages onto the system
-    if args.apply {
-        let folded_paths = straw::folding::fold(&dotfiles_path, &info)?;
-        for path in folded_paths {
-            tracing::trace!("Folding: Found path {path:?}");
-            if !path.exists() {
-                tracing::trace!("Folding: Creating common directory at {path:?}");
-                std::fs::create_dir_all(path)?;
+        // prepare common directory structure before applying the packages onto the system
+        if args.apply {
+            let folded_paths = straw::folding::fold(&dotfiles_path, &info)?;
+            for path in folded_paths {
+                tracing::trace!("Folding: Found path {path:?}");
+                if !path.exists() {
+                    tracing::trace!("Folding: Creating common directory at {path:?}");
+                    std::fs::create_dir_all(path)?;
+                }
             }
         }
-    }
 
-    if !args.packages.is_empty() {
-        for package in &args.packages {
-            apply_package(&mut cache, package, &info)?;
+        if !args.packages.is_empty() {
+            for package in &args.packages {
+                apply_package(&mut cache, package, &info)?;
+            }
+        } else if args.apply {
+            for package in &packages {
+                apply_package(&mut cache, package, &info)?;
+            }
         }
-    } else if args.apply {
-        for package in &packages {
-            apply_package(&mut cache, package, &info)?;
-        }
+        cache.save(cache_path)?;
     }
-    cache.save(cache_path)?;
 
     Ok(())
 }

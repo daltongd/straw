@@ -1,6 +1,13 @@
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
+// TODO: consider a `--force` argument, along the lines of:
+// /// Used with `--packages` - will remove the current configuration and replace it with the one
+// /// found in the `.dotfiles` path
+// /// WARNING: your current configuration will be lost!
+// #[clap(long, action)]
+// pub force: bool,
+
 #[derive(Parser, Debug, Clone, Serialize, Deserialize, mlua::FromLua)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
@@ -64,9 +71,15 @@ pub struct Args {
     #[clap(long, action)]
     pub commit: bool,
 
-    /// Show git status
-    #[clap(long, action)]
-    pub status: bool,
+    /// Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating
+    /// a symlink.
+    /// NOTE: This functionality is limited to the paths under your home directory
+    #[clap(long)]
+    pub adopt: Option<String>,
+
+    /// Override the default `~/.dotfiles` path
+    #[clap(long)]
+    pub dotfiles: Option<String>,
 
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -85,5 +98,16 @@ pub enum Commands {
     Init {
         /// Remote url (optional)
         url: Option<String>,
+    },
+
+    /// Get git status
+    Status,
+
+    /// Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating
+    /// a symlink.
+    /// NOTE: This functionality is limited to the paths under your home directory
+    Adopt {
+        /// Path of the item to adopt
+        path: String,
     },
 }

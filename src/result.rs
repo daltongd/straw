@@ -12,6 +12,7 @@ pub enum StrawError {
     Lua(mlua::Error),
     TomlSerialize(toml::ser::Error),
     TomlDeserialize(toml::de::Error),
+    StripPrefix(std::path::StripPrefixError),
 }
 
 impl Display for StrawError {
@@ -72,5 +73,11 @@ impl From<toml::ser::Error> for StrawError {
 impl From<toml::de::Error> for StrawError {
     fn from(value: toml::de::Error) -> Self {
         StrawError::TomlDeserialize(value)
+    }
+}
+
+impl From<std::path::StripPrefixError> for StrawError {
+    fn from(value: std::path::StripPrefixError) -> Self {
+        StrawError::StripPrefix(value)
     }
 }

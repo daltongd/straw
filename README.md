@@ -136,7 +136,7 @@ In the overrides:
 - [x] replace json with lua for some added pizzaz
 - [x] resolve `~` in paths
 - [ ] env vars ? also cached (might not be feasible, stretch goal)
-- [ ] add adopt ? - not sure if this is truly useful, but should be evaluated
+- [x] add adopt ? - not sure if this is truly useful, but should be evaluated
 - [ ] additional option for dotfiles handling by replacing `dot-` with a period `.`
 as in GNU Stow
 

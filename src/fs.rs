@@ -5,19 +5,20 @@ use crate::{
     state::StateInfo,
 };
 
-pub fn path_to_string(path: &Path, home_dir: &str) -> String {
+pub fn sanitize_path(path: &str, home_dir: &str) -> String {
     let home_dir = home_dir.replace("\\", "/");
-    path.display()
-        .to_string()
-        .replace("\\", "/")
-        .replace(&home_dir, "~")
+    path.replace("\\", "/").replace(&home_dir, "~")
 }
 
-pub fn create_symlink(info: &StateInfo, from: &PathBuf, to: &PathBuf) -> Result<()> {
-    let display_from = path_to_string(from, info.home_dir);
-    let display_to = path_to_string(to, info.home_dir);
+pub fn path_to_string(path: &Path, home_dir: &str) -> String {
+    sanitize_path(&path.display().to_string(), home_dir)
+}
+
+pub fn create_symlink(preview: bool, home_dir: &str, from: &PathBuf, to: &PathBuf) -> Result<()> {
+    let display_from = path_to_string(from, home_dir);
+    let display_to = path_to_string(to, home_dir);
     if from.is_dir() {
-        if !info.args.preview {
+        if !preview {
             #[cfg(windows)]
             std::os::windows::fs::symlink_dir(from, to)?;
             #[cfg(unix)]
@@ -25,7 +26,7 @@ pub fn create_symlink(info: &StateInfo, from: &PathBuf, to: &PathBuf) -> Result<
         }
         tracing::info!("Created a directory link:\t\t{display_from} -> {display_to}");
     } else if from.is_file() {
-        if !info.args.preview {
+        if !preview {
             #[cfg(windows)]
             std::os::windows::fs::symlink_file(from, to)?;
             #[cfg(unix)]
@@ -34,10 +35,10 @@ pub fn create_symlink(info: &StateInfo, from: &PathBuf, to: &PathBuf) -> Result<
         tracing::info!("Created a file link:\t\t{display_from} -> {display_to}");
     } else if from.is_symlink() {
         return Err(StrawError::String(
-            "Linking symlink to a symlink is not supported at the moment.".into(),
+            "Linking symlink to a symlink is not supported.".into(),
         ));
     } else {
-        return Err(StrawError::String("Invalid path {from_path:?}".into()));
+        return Err(StrawError::String(format!("Invalid path {display_from}")));
     }
 
     Ok(())
