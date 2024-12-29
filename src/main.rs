@@ -117,7 +117,8 @@ fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> 
     let package_dir = std::fs::read_dir(&package_path)?;
 
     tracing::trace!("Applying package: {name}");
-    if (info.args.packages.is_empty() && info.config.ignores.contains(&name.into()))
+    let has_packages = !info.args.packages.is_empty();
+    if (!has_packages && info.config.ignores.contains(&name.into()))
         || info.args.ignore.contains(&name.into())
     {
         tracing::trace!("Ignoring {name}");
@@ -126,9 +127,9 @@ fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> 
 
     let deployed_links_for_package = cache.find_deployed_links(name);
     let deployed_links = cache.get_deployed_packages_mut();
-    for (i, link) in deployed_links_for_package {
+    for (i, link) in deployed_links_for_package.iter().rev() {
         straw::fs::remove_symlink_if_exists(info, &PathBuf::from(link))?;
-        deployed_links.remove(i);
+        deployed_links.remove(*i);
     }
 
     if info.config.overrides.contains_key(name) {

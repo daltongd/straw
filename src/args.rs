@@ -1,13 +1,6 @@
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
-// TODO: consider a `--force` argument, along the lines of:
-// /// Used with `--packages` - will remove the current configuration and replace it with the one
-// /// found in the `.dotfiles` path
-// /// WARNING: your current configuration will be lost!
-// #[clap(long, action)]
-// pub force: bool,
-
 #[derive(Parser, Debug, Clone, Serialize, Deserialize, mlua::FromLua)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
