@@ -5,5 +5,6 @@ pub mod folding;
 pub mod fs;
 pub mod git;
 pub mod lua;
+pub mod packages;
 pub mod result;
 pub mod state;
