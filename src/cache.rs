@@ -1,4 +1,7 @@
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -10,15 +13,23 @@ pub struct CachedPackage {
     pub path: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Cache {
+    path: PathBuf,
     deployed: Vec<CachedPackage>,
 }
 
 impl Cache {
-    pub fn save(&self, path: &Path) -> Result<()> {
+    pub fn new(path: &Path) -> Self {
+        Self {
+            path: path.into(),
+            deployed: Vec::new(),
+        }
+    }
+
+    pub fn save(&self) -> Result<()> {
         let toml = toml::to_string(self)?;
-        fs::write(path, toml)?;
+        fs::write(&self.path, toml)?;
         Ok(())
     }
 

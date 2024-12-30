@@ -1,4 +1,8 @@
-use std::{fs::ReadDir, path::PathBuf, str::FromStr};
+use std::{
+    fs::ReadDir,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use clap::Parser;
 use regex::{Captures, Regex};
@@ -141,6 +145,13 @@ fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> 
     Ok(())
 }
 
+fn apply_packages(cache: &mut Cache, packages: &Vec<String>, info: &StateInfo) -> Result<()> {
+    for package in packages {
+        apply_package(cache, package, info)?;
+    }
+    Ok(())
+}
+
 fn clear_deployed_packages(cache: &mut Cache, info: &StateInfo) -> Result<()> {
     for package in cache.get_deployed_packages() {
         straw::fs::remove_symlink_if_exists(info, &PathBuf::from(&package.path))?;
@@ -164,7 +175,6 @@ fn find_home() -> Result<String> {
     Ok(home_dir.into())
 }
 
-// TODO: evaluate if this shouldn't be replaced with some other file or console arguments
 fn resolve_repo_config(lua: &mlua::Lua, args: &Args) -> Result<RepositoryConfig> {
     let mut repo_config = straw::lua::run_lua_git_config(lua)?;
 
@@ -185,6 +195,54 @@ fn resolve_repo_config(lua: &mlua::Lua, args: &Args) -> Result<RepositoryConfig>
     }
 
     Ok(repo_config)
+}
+
+fn adopt(args: &Args, path: &str, home_dir: &str, dotfiles_path: &Path) -> Result<()> {
+    let path = path.replace("~", &home_dir.replace("\\", "/"));
+    let source_path = PathBuf::from(&path);
+    if let Some(dir_name) = source_path.file_stem().unwrap_or_default().to_str() {
+        let relative_to_home = source_path.strip_prefix(home_dir).map_err(|_| {
+            StrawError::String("Adopt: only paths under the home directory are supported".into())
+        })?;
+
+        let package_name = if let Some(dir_name_stripped) = dir_name.strip_prefix(".") {
+            dir_name_stripped
+        } else {
+            dir_name
+        };
+
+        if dotfiles_path.join(package_name).exists() {
+            return Err(StrawError::String(format!(
+                "Adopt: package named {package_name} already exists."
+            )));
+        }
+
+        let target_path = dotfiles_path.join(package_name).join(relative_to_home);
+
+        let display_source_path = straw::fs::sanitize_path(&path, home_dir);
+        let display_target_path = straw::fs::path_to_string(&target_path, home_dir);
+        tracing::info!("Adopt: adopting {display_source_path} into {display_target_path}");
+
+        if !args.preview {
+            if let Some(parent_dir) = target_path.parent() {
+                if !parent_dir.exists() {
+                    std::fs::create_dir_all(parent_dir)?;
+                }
+            }
+            std::fs::rename(&source_path, &target_path)?;
+        }
+
+        // `target_path` becomes `from` and `source_path` becomes `to`, since we just did the rename
+        straw::fs::create_symlink(args.preview, home_dir, &target_path, &source_path)?;
+
+        tracing::info!("Adopt: successfully adopted {:?}", package_name);
+    } else {
+        return Err(StrawError::String(
+            "Adopt: unknown error. Couldn't determine the package name.".into(),
+        ));
+    }
+
+    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -262,78 +320,18 @@ fn main() -> Result<()> {
                 }
             },
             Commands::Status => {
-                let status = straw::git::get_status(&dotfiles_path)?;
+                let statuses = straw::git::get_status(&dotfiles_path)?;
                 tracing::info!("Sync: Status");
-                if status.is_empty() {
+                if statuses.is_empty() {
                     tracing::info!("Status: Working directory clean.");
                 } else {
-                    for (path, file_status) in status {
-                        let file_status = match file_status {
-                            git2::Status::INDEX_NEW => "new",
-                            git2::Status::INDEX_MODIFIED => "modified",
-                            git2::Status::INDEX_DELETED => "deleted",
-                            git2::Status::INDEX_RENAMED => "renamed",
-                            git2::Status::INDEX_TYPECHANGE => "type change",
-                            git2::Status::WT_NEW => "new",
-                            git2::Status::WT_MODIFIED => "modified",
-                            git2::Status::WT_DELETED => "deleted",
-                            git2::Status::WT_RENAMED => "renamed",
-                            git2::Status::WT_TYPECHANGE => "type change",
-                            git2::Status::CONFLICTED => "conflict",
-                            _ => continue,
-                        };
-                        tracing::info!("Status: {} ({})", path, file_status)
+                    for status in statuses {
+                        tracing::info!("Status: {}", status)
                     }
                 }
             }
             Commands::Adopt { path } => {
-                let path = path.replace("~", &home_dir.replace("\\", "/"));
-                let source_path = PathBuf::from(&path);
-                if let Some(dir_name) = source_path.file_stem().unwrap_or_default().to_str() {
-                    let relative_to_home = source_path.strip_prefix(&home_dir).map_err(|_| {
-                        StrawError::String(
-                            "Adopt: only paths under the home directory are supported".into(),
-                        )
-                    })?;
-
-                    let package_name = if let Some(dir_name_stripped) = dir_name.strip_prefix(".") {
-                        dir_name_stripped
-                    } else {
-                        dir_name
-                    };
-
-                    if dotfiles_path.join(package_name).exists() {
-                        return Err(StrawError::String(format!(
-                            "Adopt: package named {package_name} already exists."
-                        )));
-                    }
-
-                    let target_path = dotfiles_path.join(package_name).join(relative_to_home);
-
-                    let display_source_path = straw::fs::sanitize_path(&path, &home_dir);
-                    let display_target_path = straw::fs::path_to_string(&target_path, &home_dir);
-                    tracing::info!(
-                        "Adopt: adopting {display_source_path} into {display_target_path}"
-                    );
-
-                    if !args.preview {
-                        if let Some(parent_dir) = target_path.parent() {
-                            if !parent_dir.exists() {
-                                std::fs::create_dir_all(parent_dir)?;
-                            }
-                        }
-                        std::fs::rename(&source_path, &target_path)?;
-                    }
-
-                    // `target_path` becomes `from` and `source_path` becomes `to`, since we just did the rename
-                    straw::fs::create_symlink(args.preview, &home_dir, &target_path, &source_path)?;
-
-                    tracing::info!("Adopt: successfully adopted {:?}", package_name);
-                } else {
-                    return Err(StrawError::String(
-                        "Adopt: unknown error. Couldn't determine the package name.".into(),
-                    ));
-                }
+                adopt(&args, path, &home_dir, &dotfiles_path)?;
             }
         }
     } else {
@@ -384,26 +382,17 @@ fn main() -> Result<()> {
             config,
         };
 
-        let mut packages = Vec::new();
-        let dotfiles = std::fs::read_dir(&dotfiles_path)?;
-        for path in dotfiles {
-            let path = path?;
-            if let Some(item_name) = path.file_name().to_str() {
-                if path.file_type()?.is_dir() && !item_name.starts_with(".") {
-                    packages.push(item_name.to_owned());
-                }
-            }
-        }
-        tracing::info!("Packages found: {packages:?}");
-
         let cache_path = &dotfiles_path.join(".straw/.cache");
-        let mut cache = Cache::default();
-        if let Ok(cached_packages) = Cache::read(cache_path) {
+        let mut cache = if let Ok(cached_packages) = Cache::read(cache_path) {
             tracing::trace!("Cached packages found: {cached_packages:?}");
-            cache = cached_packages;
-        }
+            cached_packages
+        } else {
+            Cache::new(cache_path)
+        };
 
-        if args.clear || args.apply {
+        let packages_specified = !args.packages.is_empty();
+
+        if args.clear || args.apply || packages_specified {
             clear_deployed_packages(&mut cache, &info)?;
         }
 
@@ -419,16 +408,27 @@ fn main() -> Result<()> {
             }
         }
 
-        if !args.packages.is_empty() {
-            for package in &args.packages {
-                apply_package(&mut cache, package, &info)?;
-            }
+        if packages_specified {
+            tracing::info!("Packages specified: {:?}", args.packages);
+            apply_packages(&mut cache, &args.packages, &info)?;
         } else if args.apply {
-            for package in &packages {
-                apply_package(&mut cache, package, &info)?;
+            let mut packages = Vec::new();
+            let dotfiles = std::fs::read_dir(&dotfiles_path)?;
+            for path in dotfiles {
+                let path = path?;
+                if let Some(item_name) = path.file_name().to_str() {
+                    if path.file_type()?.is_dir() && !item_name.starts_with(".") {
+                        packages.push(item_name.to_owned());
+                    }
+                }
             }
+            tracing::info!("Packages found: {packages:?}");
+            apply_packages(&mut cache, &packages, &info)?;
         }
-        cache.save(cache_path)?;
+
+        if args.clear || args.apply || packages_specified {
+            cache.save()?;
+        }
     }
 
     Ok(())
