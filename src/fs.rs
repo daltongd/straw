@@ -46,7 +46,7 @@ pub fn create_symlink(preview: bool, home_dir: &str, from: &PathBuf, to: &PathBu
 
 pub fn remove_symlink_if_exists(info: &StateInfo, link_path: &PathBuf) -> Result<()> {
     if link_path.exists() && link_path.is_symlink() {
-        let display_path = path_to_string(link_path, info.home_dir);
+        let display_path = path_to_string(link_path, info.target_dir);
         tracing::info!("Removing the existing link:\t{display_path}");
         if !info.args.preview {
             if link_path.is_dir() {

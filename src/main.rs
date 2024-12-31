@@ -10,20 +10,6 @@ use straw::{
     state::StateInfo,
 };
 
-fn find_home() -> Result<String> {
-    let home = home::home_dir().ok_or(StrawError::String(
-        "Couldn't determine the home directory path.".into(),
-    ))?;
-    let home_dir = home.as_os_str().to_str().ok_or(StrawError::String(
-        "Couldn't convert {home:?} to &str.".into(),
-    ))?;
-
-    let display_home = home_dir.replace("\\", "/");
-    tracing::info!("Found home directory: {display_home}");
-
-    Ok(home_dir.into())
-}
-
 fn resolve_repo_config(lua: &mlua::Lua, args: &Args) -> Result<RepositoryConfig> {
     let mut repo_config = straw::lua::run_git_config(lua)?;
 
@@ -76,8 +62,8 @@ fn main() -> Result<()> {
         tracing::warn!("Running in `preview` mode. No changes will be applied.");
     }
 
-    let home_dir = find_home()?;
-    let dotfiles_path: PathBuf = [&home_dir, straw::packages::DOTFILES_DIR].iter().collect();
+    let target_dir = straw::utils::find_target_dir(&args)?;
+    let dotfiles_path: PathBuf = straw::utils::get_dotfiles_path(&args)?;
 
     let lua = straw::lua::create_lua_runtime(&dotfiles_path, &args)?;
 
@@ -92,7 +78,7 @@ fn main() -> Result<()> {
     if let Some(command) = &args.command {
         match command {
             Commands::Clone { url } => {
-                match straw::git::ops::clone(&args, url, &dotfiles_path, &home_dir) {
+                match straw::git::ops::clone(&args, url, &dotfiles_path, &target_dir) {
                     Ok(_) => {
                         tracing::info!(
                             "Clone: successfully cloned {url} repository into {}",
@@ -132,7 +118,7 @@ fn main() -> Result<()> {
                 }
             }
             Commands::Adopt { path } => {
-                straw::packages::adopt(&args, path, &home_dir, &dotfiles_path)?;
+                straw::packages::adopt(&args, path, &target_dir, &dotfiles_path)?;
             }
         }
     } else {
@@ -176,7 +162,7 @@ fn main() -> Result<()> {
         let config = straw::lua::run_config(&lua)?;
 
         let info = StateInfo {
-            home_dir: &home_dir,
+            target_dir: &target_dir,
             dotfiles_path: dotfiles_path.clone(),
             args: &args,
             env_var_regex,

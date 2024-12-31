@@ -74,6 +74,10 @@ pub struct Args {
     #[clap(long)]
     pub dotfiles: Option<String>,
 
+    /// Override the target path (default: `~`)
+    #[clap(long)]
+    pub target: Option<String>,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 }

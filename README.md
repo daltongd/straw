@@ -131,11 +131,12 @@ In the overrides:
 - [ ] additional option for dotfiles handling by replacing `dot-` with a period `.`
 as in GNU Stow
 
-- [ ] `.dotfiles` path override ?
-- [ ] swappable profiles (maybe via the `.dotfiles` path override?)
-
 - [ ] env vars ? also cached (might not be feasible, stretch goal)
 
+- [~] swappable profiles (via the `.dotfiles` path override)
+
+- [x] `.dotfiles` path override
+- [x] `target` path override
 - [x] cache deployed symlinks and add `--clear` or a similar command
 - [x] use packages' directory structures when path folding
 - [x] per-device (hostname) ignores/overrides - instead add hostname to lua module

@@ -12,8 +12,6 @@ use crate::{
 };
 use regex::Captures;
 
-pub const DOTFILES_DIR: &str = ".dotfiles/";
-
 fn fold_and_apply(
     cache: &mut Cache,
     name: &str,
@@ -34,7 +32,7 @@ fn fold_and_apply(
                         "Can't convert '{item_name:?}' to str.".into(),
                     ))?;
                     let to: PathBuf = PathBuf::from(&to).join(item_name);
-                    let display_path = crate::fs::path_to_string(&existing.path(), info.home_dir);
+                    let display_path = crate::fs::path_to_string(&existing.path(), info.target_dir);
                     tracing::trace!("{name}: {display_path} exists");
                     let dir = std::fs::read_dir(item.path())?;
                     fold_and_apply(cache, name, info, dir, to)?;
@@ -50,7 +48,7 @@ fn fold_and_apply(
             tracing::trace!("{name}: Creating symlink");
 
             crate::fs::remove_symlink_if_exists(info, &to)?;
-            crate::fs::create_symlink(info.args.preview, info.home_dir, &from, &to.clone())?;
+            crate::fs::create_symlink(info.args.preview, info.target_dir, &from, &to.clone())?;
             cache.cache_package(name, &to);
         }
     }
@@ -77,10 +75,10 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
             }
         })
         .into_owned();
-    let to = to.replace("~", info.home_dir);
+    let to = to.replace("~", info.target_dir);
 
-    let display_from = crate::fs::path_to_string(&PathBuf::from(&from), info.home_dir);
-    let display_to = crate::fs::path_to_string(&PathBuf::from(&to), info.home_dir);
+    let display_from = crate::fs::path_to_string(&PathBuf::from(&from), info.target_dir);
+    let display_to = crate::fs::path_to_string(&PathBuf::from(&to), info.target_dir);
     tracing::info!("Found override:\t\t\t{display_from} -> {display_to}");
 
     let to = PathBuf::from_str(to.as_str())
@@ -102,10 +100,8 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
             }
         } // else - `to` is root, ignore
 
-        let from_path: PathBuf = [info.home_dir, DOTFILES_DIR, name, from.as_str()]
-            .iter()
-            .collect();
-        crate::fs::create_symlink(info.args.preview, info.home_dir, &from_path, &to.clone())?;
+        let from_path: PathBuf = crate::utils::get_dotfiles_path(info.args)?;
+        crate::fs::create_symlink(info.args.preview, info.target_dir, &from_path, &to.clone())?;
         cache.cache_package(name, &to);
     }
 
@@ -137,7 +133,13 @@ fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> 
     if info.config.overrides.contains_key(name) {
         apply_override(cache, name, info)?;
     } else {
-        fold_and_apply(cache, name, info, package_dir, PathBuf::from(info.home_dir))?;
+        fold_and_apply(
+            cache,
+            name,
+            info,
+            package_dir,
+            PathBuf::from(info.target_dir),
+        )?;
     }
 
     Ok(())
