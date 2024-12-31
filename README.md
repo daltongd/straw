@@ -130,8 +130,16 @@ In the overrides:
 - [ ] patches - ability to get a specific directory/file from any dotfiles repository
 - [ ] additional option for dotfiles handling by replacing `dot-` with a period `.`
 as in GNU Stow
+- [ ] lua callbacks (e.g. for applying a package/packages, etc.)
+- [ ] configurable one-time deploy by copying the file directly
 
-- [ ] env vars ? also cached (might not be feasible, stretch goal)
+Nice to haves:
+
+- [ ] installing packages / running scripts (this could also solve the env vars)
+- [ ] setting the env vars, also cached (might not be feasible, on all platforms,
+also could be set by the shell profile for the most part)
+
+Done:
 
 - [~] swappable profiles (via the `.dotfiles` path override)
 
@@ -143,7 +151,7 @@ as in GNU Stow
 - [x] per-username ignores/overrides - instead add username to lua module
 - [x] replace json with lua for some added pizzaz
 - [x] resolve `~` in paths
-- [x] add adopt ? - not sure if this is truly useful, but should be evaluated
+- [x] adopt
 
 - [x] additional console args for overrides (especially useful for initial clone)
 things like: ignores, or ability to specify packages to apply
