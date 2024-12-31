@@ -5,7 +5,7 @@ use regex::Regex;
 use straw::{
     args::{Args, Commands},
     cache::Cache,
-    git::{MergeFlavor, RepositoryConfig},
+    git::config::{MergeFlavor, RepositoryConfig},
     result::{Result, StrawError},
     state::StateInfo,
 };
@@ -25,7 +25,7 @@ fn find_home() -> Result<String> {
 }
 
 fn resolve_repo_config(lua: &mlua::Lua, args: &Args) -> Result<RepositoryConfig> {
-    let mut repo_config = straw::lua::run_lua_git_config(lua)?;
+    let mut repo_config = straw::lua::run_git_config(lua)?;
 
     // apply args overrides
     if let Some(branch) = &args.branch {
@@ -92,7 +92,7 @@ fn main() -> Result<()> {
     if let Some(command) = &args.command {
         match command {
             Commands::Clone { url } => {
-                match straw::git::clone(&args, url, &dotfiles_path, &home_dir) {
+                match straw::git::ops::clone(&args, url, &dotfiles_path, &home_dir) {
                     Ok(_) => {
                         tracing::info!(
                             "Clone: successfully cloned {url} repository into {}",
@@ -105,7 +105,7 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            Commands::Init { url } => match straw::git::init(&dotfiles_path, url.to_owned()) {
+            Commands::Init { url } => match straw::git::ops::init(&dotfiles_path, url.to_owned()) {
                 Ok(_) => {
                     tracing::info!(
                         "Clone: successfully initialized a repository in {}",
@@ -121,7 +121,7 @@ fn main() -> Result<()> {
                 }
             },
             Commands::Status => {
-                let statuses = straw::git::get_status(&dotfiles_path)?;
+                let statuses = straw::git::ops::get_status(&dotfiles_path)?;
                 tracing::info!("Sync: Status");
                 if statuses.is_empty() {
                     tracing::info!("Status: Working directory clean.");
@@ -138,7 +138,7 @@ fn main() -> Result<()> {
     } else {
         if args.sync || args.commit || args.message.is_some() {
             // commit changes
-            match straw::git::commit_changes(&args, &dotfiles_path, &repo_config) {
+            match straw::git::ops::commit_changes(&args, &dotfiles_path, &repo_config) {
                 Ok(any_changes_committed) => {
                     if any_changes_committed {
                         tracing::info!("Commit: Done committing local changes to .dotfiles")
@@ -153,13 +153,13 @@ fn main() -> Result<()> {
         }
         if args.sync || args.pull {
             // update git repo
-            match straw::git::update_dotfiles(&args, &dotfiles_path, &repo_config) {
+            match straw::git::ops::update_dotfiles(&args, &dotfiles_path, &repo_config) {
                 Ok(_) => tracing::info!("Update: .dotfiles updated"),
                 Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
             }
         }
         if args.sync || args.push {
-            match straw::git::push_changes(&args, &dotfiles_path, &repo_config) {
+            match straw::git::ops::push_changes(&args, &dotfiles_path, &repo_config) {
                 Ok(any_changes_pushed) => {
                     if any_changes_pushed {
                         tracing::info!("Push: local changes pushed to {}", repo_config.remote)
@@ -173,7 +173,7 @@ fn main() -> Result<()> {
             }
         }
 
-        let config = straw::lua::run_lua_config(&lua)?;
+        let config = straw::lua::run_config(&lua)?;
 
         let info = StateInfo {
             home_dir: &home_dir,

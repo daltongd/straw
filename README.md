@@ -127,24 +127,25 @@ In the overrides:
 
 ## Todos
 
-- [ ] refactor `main.rs`
+- [ ] patches - ability to get a specific directory/file from any dotfiles repository
+- [ ] additional option for dotfiles handling by replacing `dot-` with a period `.`
+as in GNU Stow
+
+- [ ] `.dotfiles` path override ?
+- [ ] swappable profiles (maybe via the `.dotfiles` path override?)
+
+- [ ] env vars ? also cached (might not be feasible, stretch goal)
 
 - [x] cache deployed symlinks and add `--clear` or a similar command
-- [ ] patches - ability to get a specific directory/file from any dotfiles repository
 - [x] use packages' directory structures when path folding
 - [x] per-device (hostname) ignores/overrides - instead add hostname to lua module
 - [x] per-username ignores/overrides - instead add username to lua module
 - [x] replace json with lua for some added pizzaz
 - [x] resolve `~` in paths
 - [x] add adopt ? - not sure if this is truly useful, but should be evaluated
-- [ ] additional option for dotfiles handling by replacing `dot-` with a period `.`
-as in GNU Stow
-- [ ] env vars ? also cached (might not be feasible, stretch goal)
 
 - [x] additional console args for overrides (especially useful for initial clone)
 things like: ignores, or ability to specify packages to apply
-- [ ] `.dotfiles` path override ?
-- [ ] swappable profiles (maybe via the `.dotfiles` path override?)
 
 - [x] add `ssh2` with `openssl-on-win32` for windows to let `git2` handle cloning
 over `ssh://`

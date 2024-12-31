@@ -5,7 +5,7 @@ use mlua::LuaSerdeExt;
 use crate::{
     args::Args,
     config::Config,
-    git::RepositoryConfig,
+    git::config::RepositoryConfig,
     result::{Result, StrawError},
 };
 
@@ -94,7 +94,7 @@ pub fn create_lua_runtime(dotfiles_path: &Path, args: &Args) -> Result<mlua::Lua
     Ok(lua)
 }
 
-pub fn run_lua_git_config(lua: &mlua::Lua) -> Result<RepositoryConfig> {
+pub fn run_git_config(lua: &mlua::Lua) -> Result<RepositoryConfig> {
     let config = lua
         .load(
             r#"
@@ -113,7 +113,7 @@ pub fn run_lua_git_config(lua: &mlua::Lua) -> Result<RepositoryConfig> {
     Ok(config.unwrap_or_default())
 }
 
-pub fn run_lua_config(lua: &mlua::Lua) -> Result<Config> {
+pub fn run_config(lua: &mlua::Lua) -> Result<Config> {
     let config = lua
         .load(
             r#"
