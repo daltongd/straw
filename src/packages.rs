@@ -32,7 +32,7 @@ fn fold_and_apply(
                         "Can't convert '{item_name:?}' to str.".into(),
                     ))?;
                     let to: PathBuf = PathBuf::from(&to).join(item_name);
-                    let display_path = crate::fs::path_to_string(&existing.path(), info.target_dir);
+                    let display_path = crate::fs::path_to_string(&existing.path())?;
                     tracing::trace!("{name}: {display_path} exists");
                     let dir = std::fs::read_dir(item.path())?;
                     fold_and_apply(cache, name, info, dir, to)?;
@@ -48,7 +48,7 @@ fn fold_and_apply(
             tracing::trace!("{name}: Creating symlink");
 
             crate::fs::remove_symlink_if_exists(info, &to)?;
-            crate::fs::create_symlink(info.args.preview, info.target_dir, &from, &to.clone())?;
+            crate::fs::create_symlink(info.args.preview, &from, &to.clone())?;
             cache.cache_package(name, &to);
         }
     }
@@ -77,8 +77,8 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
         .into_owned();
     let to = to.replace("~", info.target_dir);
 
-    let display_from = crate::fs::path_to_string(&PathBuf::from(&from), info.target_dir);
-    let display_to = crate::fs::path_to_string(&PathBuf::from(&to), info.target_dir);
+    let display_from = crate::fs::path_to_string(&PathBuf::from(&from))?;
+    let display_to = crate::fs::path_to_string(&PathBuf::from(&to))?;
     tracing::info!("Found override:\t\t\t{display_from} -> {display_to}");
 
     let to = PathBuf::from_str(to.as_str())
@@ -101,7 +101,7 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
         } // else - `to` is root, ignore
 
         let from_path: PathBuf = crate::utils::get_dotfiles_path(info.args)?;
-        crate::fs::create_symlink(info.args.preview, info.target_dir, &from_path, &to.clone())?;
+        crate::fs::create_symlink(info.args.preview, &from_path, &to.clone())?;
         cache.cache_package(name, &to);
     }
 
@@ -161,12 +161,12 @@ pub fn clear_deployed_packages(cache: &mut Cache, info: &StateInfo) -> Result<()
     Ok(())
 }
 
-pub fn adopt(args: &Args, path: &str, home_dir: &str, dotfiles_path: &Path) -> Result<()> {
-    let path = path.replace("~", &home_dir.replace("\\", "/"));
+pub fn adopt(args: &Args, path: &str, target_dir: &str, dotfiles_path: &Path) -> Result<()> {
+    let path = crate::fs::sanitize_path(path)?;
     let source_path = PathBuf::from(&path);
     if let Some(dir_name) = source_path.file_stem().unwrap_or_default().to_str() {
-        let relative_to_home = source_path.strip_prefix(home_dir).map_err(|_| {
-            StrawError::String("Adopt: only paths under the home directory are supported".into())
+        let relative_to_target = source_path.strip_prefix(target_dir).map_err(|_| {
+            StrawError::String("Adopt: only paths under the target directory are supported".into())
         })?;
 
         let package_name = if let Some(dir_name_stripped) = dir_name.strip_prefix(".") {
@@ -181,11 +181,10 @@ pub fn adopt(args: &Args, path: &str, home_dir: &str, dotfiles_path: &Path) -> R
             )));
         }
 
-        let target_path = dotfiles_path.join(package_name).join(relative_to_home);
+        let target_path = dotfiles_path.join(package_name).join(relative_to_target);
 
-        let display_source_path = crate::fs::sanitize_path(&path, home_dir);
-        let display_target_path = crate::fs::path_to_string(&target_path, home_dir);
-        tracing::info!("Adopt: adopting {display_source_path} into {display_target_path}");
+        let display_target_path = crate::fs::path_to_string(&target_path)?;
+        tracing::info!("Adopt: adopting {path} into {display_target_path}");
 
         if !args.preview {
             if let Some(parent_dir) = target_path.parent() {
@@ -197,7 +196,7 @@ pub fn adopt(args: &Args, path: &str, home_dir: &str, dotfiles_path: &Path) -> R
         }
 
         // `target_path` becomes `from` and `source_path` becomes `to`, since we just did the rename
-        crate::fs::create_symlink(args.preview, home_dir, &target_path, &source_path)?;
+        crate::fs::create_symlink(args.preview, &target_path, &source_path)?;
 
         tracing::info!("Adopt: successfully adopted {:?}", package_name);
     } else {

@@ -5,24 +5,29 @@ use crate::{
     result::{Result, StrawError},
 };
 
-pub const DOTFILES_DIR: &str = ".dotfiles/";
+const DOTFILES_DIRS: [&str; 3] = [".dotfiles/", "dotfiles/", "dot-dotfiles/"];
 
-pub fn find_target_dir(args: &Args) -> Result<String> {
+// this is not free, but relatively low-cost. would be nice to cache the home_dir somehow though
+pub fn get_home_dir() -> Result<String> {
     let home = home::home_dir().ok_or(StrawError::String(
         "Couldn't determine the home directory path.".into(),
     ))?;
+
     let home_dir = home.as_os_str().to_str().ok_or(StrawError::String(
         "Couldn't convert {home:?} to &str.".into(),
     ))?;
 
-    let display_home = home_dir.replace("\\", "/");
-    tracing::info!("Using target directory: {display_home}");
+    Ok(home_dir.into())
+}
+
+pub fn find_target_dir(args: &Args) -> Result<String> {
+    let home_dir = get_home_dir()?;
 
     if let Some(target_override) = &args.target {
-        return Ok(target_override.replace("~", home_dir).replace("\\", "/"));
+        return Ok(target_override.replace("~", &home_dir).replace("\\", "/"));
     }
 
-    Ok(home_dir.into())
+    Ok(home_dir)
 }
 
 pub fn get_dotfiles_path(args: &Args) -> Result<PathBuf> {
@@ -33,16 +38,17 @@ pub fn get_dotfiles_path(args: &Args) -> Result<PathBuf> {
     let dotfiles_path: PathBuf = if let Some(dotfiles_override) = &args.dotfiles {
         PathBuf::from(dotfiles_override)
     } else {
-        let path = [&target_dir, DOTFILES_DIR].iter().collect::<PathBuf>();
-        // if !path.exists() {
-        //     return [
-        //         &target_dir,
-        //         DOTFILES_DIR.strip_prefix(".").unwrap_or_default(),
-        //     ]
-        //     .iter()
-        //     .collect();
-        // }
-        path
+        let mut result = None;
+        for path in DOTFILES_DIRS {
+            let path = [&target_dir, path].iter().collect::<PathBuf>();
+            if path.exists() {
+                result = Some(path);
+                break;
+            }
+        }
+        result.ok_or(StrawError::String(
+            "Couldn't find the dotfiles directory. Names tried {DOTFILES_DIRS:?}".into(),
+        ))?
     };
 
     Ok(dotfiles_path)

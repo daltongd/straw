@@ -1241,6 +1241,7 @@ dependencies = [
  "clap",
  "git2",
  "home",
+ "lazy_static",
  "mlua",
  "openssl",
  "regex",

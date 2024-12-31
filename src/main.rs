@@ -65,6 +65,13 @@ fn main() -> Result<()> {
     let target_dir = straw::utils::find_target_dir(&args)?;
     let dotfiles_path: PathBuf = straw::utils::get_dotfiles_path(&args)?;
 
+    let display_target = target_dir.replace("\\", "/");
+    tracing::info!("Using target directory: {display_target}");
+    tracing::info!(
+        "Using dotfiles path: {}",
+        straw::fs::path_to_string(&dotfiles_path)?
+    );
+
     let lua = straw::lua::create_lua_runtime(&dotfiles_path, &args)?;
 
     let repo_config = match resolve_repo_config(&lua, &args) {
@@ -77,20 +84,18 @@ fn main() -> Result<()> {
 
     if let Some(command) = &args.command {
         match command {
-            Commands::Clone { url } => {
-                match straw::git::ops::clone(&args, url, &dotfiles_path, &target_dir) {
-                    Ok(_) => {
-                        tracing::info!(
-                            "Clone: successfully cloned {url} repository into {}",
-                            dotfiles_path.display()
-                        );
-                    }
-                    Err(e) => {
-                        tracing::error!("Error cloning the repository: {e}");
-                        return Err(e);
-                    }
+            Commands::Clone { url } => match straw::git::ops::clone(&args, url, &dotfiles_path) {
+                Ok(_) => {
+                    tracing::info!(
+                        "Clone: successfully cloned {url} repository into {}",
+                        dotfiles_path.display()
+                    );
                 }
-            }
+                Err(e) => {
+                    tracing::error!("Error cloning the repository: {e}");
+                    return Err(e);
+                }
+            },
             Commands::Init { url } => match straw::git::ops::init(&dotfiles_path, url.to_owned()) {
                 Ok(_) => {
                     tracing::info!(

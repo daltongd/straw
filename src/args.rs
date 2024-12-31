@@ -66,7 +66,7 @@ pub struct Args {
 
     /// Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating
     /// a symlink.
-    /// NOTE: This functionality is limited to the paths under your home directory
+    /// NOTE: This functionality is limited to the paths under your target directory
     #[clap(long)]
     pub adopt: Option<String>,
 
@@ -102,7 +102,7 @@ pub enum Commands {
 
     /// Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating
     /// a symlink.
-    /// NOTE: This functionality is limited to the paths under your home directory
+    /// NOTE: This functionality is limited to the paths under your target directory
     Adopt {
         /// Path of the item to adopt
         path: String,

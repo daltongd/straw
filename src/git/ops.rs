@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 pub use crate::git::status::get_status;
 
-pub fn clone(args: &Args, url: &str, target_path: &Path, home_dir: &str) -> Result<()> {
-    let display_path = fs::path_to_string(target_path, home_dir);
+pub fn clone(args: &Args, url: &str, target_path: &Path) -> Result<()> {
+    let display_path = fs::path_to_string(target_path)?;
     tracing::info!("Clone: cloning {url} into {display_path}");
 
     if !args.preview {

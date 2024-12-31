@@ -5,18 +5,20 @@ use crate::{
     state::StateInfo,
 };
 
-pub fn sanitize_path(path: &str, home_dir: &str) -> String {
-    let home_dir = home_dir.replace("\\", "/");
-    path.replace("\\", "/").replace(&home_dir, "~")
+pub fn sanitize_path(path: &str) -> Result<String> {
+    // there no guarantees about `home_dir` or `path` so we have to perform
+    // the `replace("\\", "/")` on both paths before replacing `home_dir` with `~`
+    let home_dir = crate::utils::get_home_dir()?.replace("\\", "/");
+    Ok(path.replace("\\", "/").replace(&home_dir, "~"))
 }
 
-pub fn path_to_string(path: &Path, home_dir: &str) -> String {
-    sanitize_path(&path.display().to_string(), home_dir)
+pub fn path_to_string(path: &Path) -> Result<String> {
+    sanitize_path(&path.display().to_string())
 }
 
-pub fn create_symlink(preview: bool, home_dir: &str, from: &PathBuf, to: &PathBuf) -> Result<()> {
-    let display_from = path_to_string(from, home_dir);
-    let display_to = path_to_string(to, home_dir);
+pub fn create_symlink(preview: bool, from: &PathBuf, to: &PathBuf) -> Result<()> {
+    let display_from = path_to_string(from)?;
+    let display_to = path_to_string(to)?;
     if from.is_dir() {
         if !preview {
             #[cfg(windows)]
@@ -46,7 +48,7 @@ pub fn create_symlink(preview: bool, home_dir: &str, from: &PathBuf, to: &PathBu
 
 pub fn remove_symlink_if_exists(info: &StateInfo, link_path: &PathBuf) -> Result<()> {
     if link_path.exists() && link_path.is_symlink() {
-        let display_path = path_to_string(link_path, info.target_dir);
+        let display_path = path_to_string(link_path)?;
         tracing::info!("Removing the existing link:\t{display_path}");
         if !info.args.preview {
             if link_path.is_dir() {
