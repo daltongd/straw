@@ -74,6 +74,7 @@ fn main() -> Result<()> {
 
     let lua = straw::lua::create_lua_runtime(&dotfiles_path, &args)?;
 
+    // Load and execute the git lua config
     let repo_config = match resolve_repo_config(&lua, &args) {
         Ok(repo_config) => repo_config,
         Err(e) => {
@@ -82,6 +83,7 @@ fn main() -> Result<()> {
         }
     };
 
+    // Handle the subcommands
     if let Some(command) = &args.command {
         match command {
             Commands::Clone { url } => match straw::git::ops::clone(&args, url, &dotfiles_path) {
@@ -105,6 +107,7 @@ fn main() -> Result<()> {
                     if let Some(origin_url) = url {
                         tracing::info!("Clone: origin url set to {origin_url}");
                     }
+                    return Ok(());
                 }
                 Err(e) => {
                     tracing::error!("Error initializng the repository: {e}");
@@ -121,106 +124,118 @@ fn main() -> Result<()> {
                         tracing::info!("Status: {}", status)
                     }
                 }
+                return Ok(());
             }
             Commands::Adopt { path } => {
                 straw::packages::adopt(&args, path, &target_dir, &dotfiles_path)?;
+                return Ok(());
             }
         }
+    }
+
+    // Sync - Step 1/3: commit local changes
+    if args.sync || args.commit || args.message.is_some() {
+        // commit changes
+        match straw::git::ops::commit_changes(&args, &dotfiles_path, &repo_config) {
+            Ok(any_changes_committed) => {
+                if any_changes_committed {
+                    tracing::info!("Commit: Done committing local changes to .dotfiles")
+                } else {
+                    tracing::info!("Commit: No local changes to commit");
+                }
+            }
+            Err(e) => tracing::error!(
+                "Commit: Failed to commit the local changes to .dotfiles with error: {e:?}"
+            ),
+        }
+    }
+
+    // Sync - Step 2/3: update the local dotfiles
+    if args.sync || args.pull {
+        // update git repo
+        match straw::git::ops::update_dotfiles(&args, &dotfiles_path, &repo_config) {
+            Ok(_) => tracing::info!("Update: .dotfiles updated"),
+            Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
+        }
+    }
+
+    // Sync - Step 3/3: push local changes to the repo
+    if args.sync || args.push {
+        match straw::git::ops::push_changes(&args, &dotfiles_path, &repo_config) {
+            Ok(any_changes_pushed) => {
+                if any_changes_pushed {
+                    tracing::info!("Push: local changes pushed to {}", repo_config.remote)
+                } else {
+                    tracing::info!("Push: No local changes to push")
+                }
+            }
+            Err(e) => {
+                tracing::error!("Push: Failed to push the local changes with error: {e:?}")
+            }
+        }
+    }
+
+    // Load and execute the lua config
+    let config = straw::lua::run_config(&lua)?;
+
+    let info = StateInfo {
+        target_dir: &target_dir,
+        dotfiles_path: dotfiles_path.clone(),
+        args: &args,
+        env_var_regex,
+        config,
+    };
+
+    // Load cache
+    let cache_path = &dotfiles_path.join(".straw/.cache");
+    let mut cache = if let Ok(cached_packages) = Cache::read(cache_path) {
+        tracing::trace!("Cached packages found: {cached_packages:?}");
+        cached_packages
     } else {
-        if args.sync || args.commit || args.message.is_some() {
-            // commit changes
-            match straw::git::ops::commit_changes(&args, &dotfiles_path, &repo_config) {
-                Ok(any_changes_committed) => {
-                    if any_changes_committed {
-                        tracing::info!("Commit: Done committing local changes to .dotfiles")
-                    } else {
-                        tracing::info!("Commit: No local changes to commit");
-                    }
-                }
-                Err(e) => tracing::error!(
-                    "Commit: Failed to commit the local changes to .dotfiles with error: {e:?}"
-                ),
+        Cache::new(cache_path)
+    };
+
+    let packages_specified = !args.packages.is_empty();
+
+    // Apply - Step 1/4: clear deployed packages
+    if args.clear || args.apply || packages_specified {
+        straw::packages::clear_deployed_packages(&mut cache, &info)?;
+    }
+
+    // Apply - Step 2/4: prepare common directory structure before applying the packages onto the system
+    if args.apply {
+        let folded_paths = straw::folding::fold(&dotfiles_path, &info)?;
+        for path in folded_paths {
+            tracing::trace!("Folding: Found path {path:?}");
+            if !path.exists() {
+                tracing::trace!("Folding: Creating common directory at {path:?}");
+                std::fs::create_dir_all(path)?;
             }
         }
-        if args.sync || args.pull {
-            // update git repo
-            match straw::git::ops::update_dotfiles(&args, &dotfiles_path, &repo_config) {
-                Ok(_) => tracing::info!("Update: .dotfiles updated"),
-                Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
-            }
-        }
-        if args.sync || args.push {
-            match straw::git::ops::push_changes(&args, &dotfiles_path, &repo_config) {
-                Ok(any_changes_pushed) => {
-                    if any_changes_pushed {
-                        tracing::info!("Push: local changes pushed to {}", repo_config.remote)
-                    } else {
-                        tracing::info!("Push: No local changes to push")
-                    }
-                }
-                Err(e) => {
-                    tracing::error!("Push: Failed to push the local changes with error: {e:?}")
-                }
-            }
-        }
+    }
 
-        let config = straw::lua::run_config(&lua)?;
-
-        let info = StateInfo {
-            target_dir: &target_dir,
-            dotfiles_path: dotfiles_path.clone(),
-            args: &args,
-            env_var_regex,
-            config,
-        };
-
-        let cache_path = &dotfiles_path.join(".straw/.cache");
-        let mut cache = if let Ok(cached_packages) = Cache::read(cache_path) {
-            tracing::trace!("Cached packages found: {cached_packages:?}");
-            cached_packages
-        } else {
-            Cache::new(cache_path)
-        };
-
-        let packages_specified = !args.packages.is_empty();
-
-        if args.clear || args.apply || packages_specified {
-            straw::packages::clear_deployed_packages(&mut cache, &info)?;
-        }
-
-        // prepare common directory structure before applying the packages onto the system
-        if args.apply {
-            let folded_paths = straw::folding::fold(&dotfiles_path, &info)?;
-            for path in folded_paths {
-                tracing::trace!("Folding: Found path {path:?}");
-                if !path.exists() {
-                    tracing::trace!("Folding: Creating common directory at {path:?}");
-                    std::fs::create_dir_all(path)?;
+    // Apply - Step 3/4: apply the packages onto the system
+    if packages_specified {
+        tracing::info!("Packages specified: {:?}", args.packages);
+        straw::packages::apply_packages(&mut cache, &args.packages, &info)?;
+    } else if args.apply {
+        let mut packages = Vec::new();
+        let dotfiles = std::fs::read_dir(&dotfiles_path)?;
+        for path in dotfiles {
+            let path = path?;
+            if let Some(item_name) = path.file_name().to_str() {
+                if path.file_type()?.is_dir() && !item_name.starts_with(".") {
+                    packages.push(item_name.to_owned());
                 }
             }
         }
+        tracing::info!("Packages found: {packages:?}");
+        straw::packages::apply_packages(&mut cache, &packages, &info)?;
+    }
 
-        if packages_specified {
-            tracing::info!("Packages specified: {:?}", args.packages);
-            straw::packages::apply_packages(&mut cache, &args.packages, &info)?;
-        } else if args.apply {
-            let mut packages = Vec::new();
-            let dotfiles = std::fs::read_dir(&dotfiles_path)?;
-            for path in dotfiles {
-                let path = path?;
-                if let Some(item_name) = path.file_name().to_str() {
-                    if path.file_type()?.is_dir() && !item_name.starts_with(".") {
-                        packages.push(item_name.to_owned());
-                    }
-                }
-            }
-            tracing::info!("Packages found: {packages:?}");
-            straw::packages::apply_packages(&mut cache, &packages, &info)?;
-        }
-
-        if args.clear || args.apply || packages_specified {
-            cache.save()?;
-        }
+    // Apply - Step 4/4: save the cache
+    if args.clear || args.apply || packages_specified {
+        cache.save()?;
     }
 
     Ok(())
