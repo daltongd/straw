@@ -75,7 +75,8 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
             }
         })
         .into_owned();
-    let to = to.replace("~", info.target_dir);
+    let home_dir = crate::utils::get_home_dir()?;
+    let to = to.replace("~", &home_dir);
 
     let display_from = crate::fs::path_to_string(&PathBuf::from(&from))?;
     let display_to = crate::fs::path_to_string(&PathBuf::from(&to))?;
@@ -100,7 +101,9 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
             }
         } // else - `to` is root, ignore
 
-        let from_path: PathBuf = crate::utils::get_dotfiles_path(info.args)?;
+        let from_path: PathBuf = crate::utils::get_dotfiles_path(info.args)?
+            .join(name)
+            .join(from);
         crate::fs::create_symlink(info.args.preview, &from_path, &to.clone())?;
         cache.cache_package(name, &to);
     }
