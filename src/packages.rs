@@ -50,6 +50,7 @@ fn fold_and_apply(
             crate::fs::remove_symlink_if_exists(info, &to)?;
             crate::fs::create_symlink(info.args.preview, &from, &to.clone())?;
             cache.cache_package(name, &to);
+            info.config.call("on_apply", name);
         }
     }
 

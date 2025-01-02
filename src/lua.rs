@@ -113,8 +113,8 @@ pub fn run_git_config(lua: &mlua::Lua) -> Result<RepositoryConfig> {
     Ok(config.unwrap_or_default())
 }
 
-pub fn run_config(lua: &mlua::Lua) -> Result<Config> {
-    let config = lua
+pub fn run_lua_config(lua: &mlua::Lua) -> Result<Config> {
+    let config_value = lua
         .load(
             r#"
             local straw = require("straw");
@@ -124,9 +124,15 @@ pub fn run_config(lua: &mlua::Lua) -> Result<Config> {
             return config
         "#,
         )
-        .eval()?;
+        .eval::<mlua::Value>()?;
 
-    let config: Option<Config> = lua.from_value(config)?;
+    // setting `deny_unsupported_types` to falls allows the config to be deserialized if the user
+    // defined functions (e.g. `on_apply` callback) within the config table
+    let options = mlua::serde::de::Options::default().deny_unsupported_types(false);
+    let mut config: Option<Config> = lua.from_value_with(config_value.clone(), options)?;
+    if let Some(config) = &mut config {
+        config.value = Some(config_value);
+    }
 
     tracing::trace!("{config:?}");
 

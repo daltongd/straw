@@ -176,7 +176,7 @@ fn main() -> Result<()> {
     }
 
     // Load and execute the lua config
-    let config = straw::lua::run_config(&lua)?;
+    let config = straw::lua::run_lua_config(&lua)?;
 
     let info = StateInfo {
         target_dir: &target_dir,

@@ -17,6 +17,22 @@ pub struct Config {
 
     #[serde(default = "default_ignores")]
     pub ignores: Vec<String>,
+
+    #[serde(skip_deserializing)]
+    pub value: Option<mlua::Value>,
+}
+
+impl Config {
+    pub fn call(&self, function_name: &str, args: impl mlua::IntoLuaMulti) -> Option<mlua::Value> {
+        if let Some(value) = &self.value {
+            if let Some(config) = value.as_table() {
+                if let Ok(on_apply) = config.get::<mlua::Function>(function_name) {
+                    return on_apply.call::<mlua::Value>(args).ok();
+                }
+            }
+        }
+        None
+    }
 }
 
 fn default_overrides() -> HashMap<String, Override> {
