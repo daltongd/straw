@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use mlua::LuaSerdeExt;
 
@@ -8,6 +8,32 @@ use crate::{
     git::config::RepositoryConfig,
     result::{Result, StrawError},
 };
+
+fn create_fs_submodule(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
+    let fs = lua.create_table()?;
+
+    let paths = lua.create_table()?;
+    fs.set("paths", &paths)?;
+    let home_dir = crate::utils::get_home_dir()?;
+    paths.set("home", crate::fs::sanitize_path(&home_dir)?)?;
+
+    let dotfiles_dir = crate::utils::get_dotfiles_path(args)?;
+    if let Some(dotfiles_dir) = dotfiles_dir.to_str() {
+        paths.set("dotfiles", crate::fs::sanitize_path(dotfiles_dir)?)?;
+    }
+
+    fs.set(
+        "exists",
+        lua.create_function(move |_, path: String| {
+            let path =
+                crate::fs::sanitize_path(&path).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+            let path = path.replace("~", home_dir.as_str());
+            Ok(PathBuf::from(path).exists())
+        })?,
+    )?;
+
+    Ok(fs)
+}
 
 fn create_straw_module(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
     let module = get_or_create_module(lua, "straw")?;
@@ -59,6 +85,8 @@ fn create_straw_module(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
 
     module.set("hostname", whoami::fallible::hostname()?)?;
     module.set("user", whoami::fallible::username()?)?;
+
+    module.set("fs", create_fs_submodule(lua, args)?)?;
 
     #[cfg(windows)]
     module.set("platform", "windows")?;
@@ -118,7 +146,7 @@ pub fn run_lua_config(lua: &mlua::Lua) -> Result<Config> {
         .load(
             r#"
             local straw = require("straw");
-            -- local config = straw.find_module("test")
+            local config = straw.find_module("test")
             local config = straw.find_module("config")
             -- dump(config)
             return config
