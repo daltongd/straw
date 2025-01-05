@@ -33,7 +33,8 @@ pub fn create_lua_runtime(dotfiles_path: &Path, args: &Args) -> Result<mlua::Lua
 fn populate_fs_submodule(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
     let fs = crate::lua::utils::get_or_create_sub_module(lua, "fs")?;
 
-    let paths = crate::lua::utils::get_or_create_sub_module(lua, "paths")?;
+    let paths = lua.create_table()?;
+    fs.set("paths", &paths)?;
     let home_dir = crate::utils::get_home_dir()?;
     paths.set("home", crate::fs::sanitize_path(&home_dir)?)?;
 
