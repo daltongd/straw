@@ -43,6 +43,8 @@ fn populate_fs_submodule(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
         paths.set("dotfiles", crate::fs::sanitize_path(dotfiles_dir)?)?;
     }
 
+    fs.set("open", lua.create_function(crate::lua::fs::open_file)?)?;
+
     fs.set(
         "exists",
         lua.create_function(move |_, path: String| {
