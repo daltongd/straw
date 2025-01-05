@@ -46,8 +46,7 @@ fn populate_fs_submodule(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
     fs.set(
         "exists",
         lua.create_function(move |_, path: String| {
-            let path =
-                crate::fs::sanitize_path(&path).map_err(|e| mlua::Error::runtime(e.to_string()))?;
+            let path = crate::fs::sanitize_path(&path)?;
             let path = path.replace("~", home_dir.as_str());
             Ok(PathBuf::from(path).exists())
         })?,

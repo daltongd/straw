@@ -81,3 +81,9 @@ impl From<std::path::StripPrefixError> for StrawError {
         StrawError::StripPrefix(value)
     }
 }
+
+impl From<StrawError> for mlua::Error {
+    fn from(val: StrawError) -> Self {
+        mlua::Error::runtime(val.to_string())
+    }
+}
