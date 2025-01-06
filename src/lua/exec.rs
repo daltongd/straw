@@ -34,7 +34,7 @@ pub fn run_lua_config(lua: &mlua::Lua) -> Result<Config> {
         )
         .eval::<mlua::Value>()?;
 
-    // setting `deny_unsupported_types` to falls allows the config to be deserialized if the user
+    // setting `deny_unsupported_types` to false allows the config to be deserialized if the user
     // defined functions (e.g. `on_apply` callback) within the config table
     let options = mlua::serde::de::Options::default().deny_unsupported_types(false);
     let mut config: Option<Config> = lua.from_value_with(config_value.clone(), options)?;

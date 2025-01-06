@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use mlua::LuaSerdeExt;
 
@@ -43,16 +43,13 @@ fn populate_fs_submodule(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
         paths.set("dotfiles", crate::fs::sanitize_path(dotfiles_dir)?)?;
     }
 
-    fs.set("open", lua.create_function(crate::lua::fs::open_file)?)?;
-
+    fs.set("read", lua.create_function(crate::lua::fs::read_file)?)?;
     fs.set(
-        "exists",
-        lua.create_function(move |_, path: String| {
-            let path = crate::fs::sanitize_path(&path)?;
-            let path = path.replace("~", home_dir.as_str());
-            Ok(PathBuf::from(path).exists())
-        })?,
+        "get_file_type",
+        lua.create_function(crate::lua::fs::get_file_type)?,
     )?;
+
+    fs.set("exists", lua.create_function(crate::lua::fs::exists)?)?;
 
     Ok(fs)
 }
