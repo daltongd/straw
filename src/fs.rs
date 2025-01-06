@@ -1,9 +1,34 @@
 use std::path::{Path, PathBuf};
 
+use lazy_regex::{Captures, Regex};
+
 use crate::{
     result::{Result, StrawError},
     state::StateInfo,
 };
+
+#[cfg(windows)]
+pub static ENV_VAR_REGEX: lazy_regex::Lazy<Regex> = lazy_regex::lazy_regex!(r"%(\w+)%");
+#[cfg(unix)]
+pub static ENV_VAR_REGEX: lazy_regex::Lazy<Regex> = lazy_regex::lazy_regex!(r"\$(\w+)");
+
+pub fn expand_path(path: &str) -> Result<String> {
+    let path = ENV_VAR_REGEX
+        .replace_all(path, |captures: &Captures| {
+            if let Ok(value) = std::env::var(&captures[1]) {
+                value
+            } else {
+                tracing::error!("Couldn't resolve env var: '{}'", &captures[0]);
+                String::from(&captures[0])
+            }
+        })
+        .into_owned();
+
+    let home_dir = crate::utils::get_home_dir()?;
+    let path = path.replace("~", &home_dir);
+
+    Ok(path)
+}
 
 pub fn sanitize_path(path: &str) -> Result<String> {
     // there no guarantees about `home_dir` or `path` so we have to perform

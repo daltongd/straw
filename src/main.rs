@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use regex::Regex;
 use straw::{
     args::{Args, Commands},
     cache::Cache,
@@ -34,11 +33,6 @@ fn resolve_repo_config(lua: &mlua::Lua, args: &Args) -> Result<RepositoryConfig>
 
 fn main() -> Result<()> {
     let args = Args::parse();
-
-    #[cfg(windows)]
-    let env_var_regex = Regex::new(r"%(\w+)%")?;
-    #[cfg(unix)]
-    let env_var_regex = Regex::new(r"\$(\w+)")?;
 
     #[cfg(debug_assertions)]
     let max_log_level = tracing::Level::TRACE;
@@ -182,7 +176,6 @@ fn main() -> Result<()> {
         target_dir: &target_dir,
         dotfiles_path: dotfiles_path.clone(),
         args: &args,
-        env_var_regex,
         config,
     };
 

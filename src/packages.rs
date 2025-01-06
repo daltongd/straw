@@ -10,7 +10,6 @@ use crate::{
     result::{Result, StrawError},
     state::StateInfo,
 };
-use regex::Captures;
 
 fn fold_and_apply(
     cache: &mut Cache,
@@ -65,19 +64,7 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
 
     // NOTE: replace the environment variables in paths `%env_var%` on windows or `$env_var`
     // on unix systems
-    let to = info
-        .env_var_regex
-        .replace_all(&to, |captures: &Captures| {
-            if let Ok(value) = std::env::var(&captures[1]) {
-                value
-            } else {
-                tracing::error!("Couldn't resolve '{}' env var.", &captures[0]);
-                String::from(&captures[0])
-            }
-        })
-        .into_owned();
-    let home_dir = crate::utils::get_home_dir()?;
-    let to = to.replace("~", &home_dir);
+    let to = crate::fs::expand_path(&to)?;
 
     let display_from = crate::fs::path_to_string(&PathBuf::from(&from))?;
     let display_to = crate::fs::path_to_string(&PathBuf::from(&to))?;

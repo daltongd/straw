@@ -7,8 +7,8 @@ pub enum StrawError {
     Io(std::io::Error),
     String(String),
     Tracing(tracing::subscriber::SetGlobalDefaultError),
-    Regex(regex::Error),
     Git(git2::Error),
+    Regex(lazy_regex::regex::Error),
     Lua(mlua::Error),
     TomlSerialize(toml::ser::Error),
     TomlDeserialize(toml::de::Error),
@@ -46,8 +46,8 @@ impl From<tracing::subscriber::SetGlobalDefaultError> for StrawError {
     }
 }
 
-impl From<regex::Error> for StrawError {
-    fn from(value: regex::Error) -> Self {
+impl From<lazy_regex::regex::Error> for StrawError {
+    fn from(value: lazy_regex::regex::Error) -> Self {
         StrawError::Regex(value)
     }
 }
