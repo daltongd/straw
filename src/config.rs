@@ -26,8 +26,8 @@ impl Config {
     pub fn call(&self, function_name: &str, args: impl mlua::IntoLuaMulti) -> Option<mlua::Value> {
         if let Some(value) = &self.value {
             if let Some(config) = value.as_table() {
-                if let Ok(on_apply) = config.get::<mlua::Function>(function_name) {
-                    return on_apply.call::<mlua::Value>(args).ok();
+                if let Ok(function) = config.get::<mlua::Function>(function_name) {
+                    return function.call::<mlua::Value>(args).ok();
                 }
             }
         }

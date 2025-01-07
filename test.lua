@@ -11,14 +11,22 @@ print("exists B", straw.fs.exists("~/.drotfiles"))
 
 print("open C", "\n", straw.fs.read("~/.dotfiles/.straw/.gitignore"))
 
-print("deleting file")
-straw.fs.remove("~/.dotfiles/.straw/test.bin")
+straw.fs.create_dir("~/.dotfiles/.straw/.tmp")
+print("write bin: bytes written:", straw.fs.write_bin("~/.dotfiles/.straw/.tmp/test.bin", { 255, 0, 255 }))
+print("read bin:", "\n", straw.inspect(straw.fs.read_bin("~/.dotfiles/.straw/.tmp/test.bin")))
 
-print("write bin: bytes written:", straw.fs.write_bin("~/.dotfiles/.straw/test.bin", { 255, 0, 255 }))
-print("read bin:", "\n", straw.inspect(straw.fs.read_bin("~/.dotfiles/.straw/test.bin")))
+print("write txt: bytes written:", straw.fs.write("~/.dotfiles/.straw/.tmp/test.txt", "yo"))
+print("write txt empty: bytes written:", straw.fs.write("~/.dotfiles/.straw/.tmp/empty.txt"))
 
-print("write txt: bytes written:", straw.fs.write("~/.dotfiles/.straw/test.txt", "yo"))
-print("write txt empty: bytes written:", straw.fs.write("~/.dotfiles/.straw/empty.txt"))
+local paths =
+	{ "~/.dotfiles/.straw/.tmp/test.bin", "~/.dotfiles/.straw/.tmp/test.txt", "~/.dotfiles/.straw/.tmp/empty.txt" }
+for _, path in ipairs(paths) do
+	if straw.fs.exists(path) then
+		print("deleting file:", path)
+		straw.fs.remove(path)
+	end
+end
+straw.fs.remove_dir("~/.dotfiles/.straw/.tmp")
 
 print("filetype A", straw.fs.get_file_type("~/.dotfiles"))
 print("filetype C", straw.fs.get_file_type("~/.dotfiles/.straw/.gitignore"))

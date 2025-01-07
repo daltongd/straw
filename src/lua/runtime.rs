@@ -1,93 +1,106 @@
 use std::path::Path;
 
 use mlua::LuaSerdeExt;
+use serde::de::DeserializeOwned;
 
 use crate::{args::Args, result::Result};
 
-fn setup_lua_path(lua: &mlua::Lua, dotfiles_path: &Path) -> Result<()> {
-    let dotfiles_path = dotfiles_path.to_str().unwrap().replace("\\", "/");
-
-    let globals = lua.globals();
-    let package: mlua::Table = globals.get("package")?;
-
-    let path: String = package.get("path")?;
-    package.set("path", format!("{dotfiles_path}/.straw/?.lua;{path}"))?;
-
-    let cpath: String = package.get("cpath")?;
-    #[cfg(windows)]
-    let ext = ".dll";
-    #[cfg(unix)]
-    let ext = ".so";
-    package.set("cpath", format!("{dotfiles_path}/.straw/?{ext};{cpath}"))?;
-
-    Ok(())
+pub struct LuaRuntime {
+    lua: mlua::Lua,
 }
 
-pub fn create_lua_runtime(dotfiles_path: &Path, args: &Args) -> Result<mlua::Lua> {
-    let lua = mlua::Lua::new();
-    setup_lua_path(&lua, dotfiles_path)?;
-    create_straw_module(&lua, args)?;
-    Ok(lua)
-}
-
-fn populate_fs_submodule(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
-    let fs = crate::lua::utils::get_or_create_sub_module(lua, "fs")?;
-
-    let paths = lua.create_table()?;
-    fs.set("paths", &paths)?;
-    let home_dir = crate::utils::get_home_dir()?;
-    paths.set("home", crate::fs::sanitize_path(&home_dir)?)?;
-
-    let dotfiles_dir = crate::utils::get_dotfiles_path(args)?;
-    if let Some(dotfiles_dir) = dotfiles_dir.to_str() {
-        paths.set("dotfiles", crate::fs::sanitize_path(dotfiles_dir)?)?;
+impl LuaRuntime {
+    pub fn new(dotfiles_path: &Path, args: &Args) -> Result<Self> {
+        let lua = mlua::Lua::new();
+        let runtime = Self { lua };
+        runtime.setup_lua_path(dotfiles_path)?;
+        runtime.create_straw_module(args)?;
+        Ok(runtime)
     }
 
-    fs.set(
-        "create_symlink",
-        lua.create_function(crate::lua::fs::create_symlink)?,
-    )?;
+    pub fn lua(&self) -> &mlua::Lua {
+        &self.lua
+    }
 
-    fs.set(
-        "create_dir",
-        lua.create_function(crate::lua::fs::create_dir)?,
-    )?;
-    fs.set(
-        "remove_dir",
-        lua.create_function(crate::lua::fs::remove_dir)?,
-    )?;
+    pub fn run<T>(&self, lua_script: &str) -> Result<(Option<T>, mlua::Value)>
+    where
+        T: DeserializeOwned,
+    {
+        let value = self.lua.load(lua_script).eval::<mlua::Value>()?;
 
-    fs.set("remove", lua.create_function(crate::lua::fs::remove_file)?)?;
+        // setting `deny_unsupported_types` to false allows the config to be deserialized if the user
+        // defined functions (e.g. `on_apply` callback) within the config table
+        let options = mlua::serde::de::Options::default().deny_unsupported_types(false);
 
-    fs.set("read", lua.create_function(crate::lua::fs::read_text_file)?)?;
-    fs.set(
-        "write",
-        lua.create_function(crate::lua::fs::write_text_file)?,
-    )?;
-    fs.set(
-        "read_bin",
-        lua.create_function(crate::lua::fs::read_bin_file)?,
-    )?;
-    fs.set(
-        "write_bin",
-        lua.create_function(crate::lua::fs::write_bin_file)?,
-    )?;
-    fs.set(
-        "get_file_type",
-        lua.create_function(crate::lua::fs::get_file_type)?,
-    )?;
+        let result: Option<T> = self.lua.from_value_with(value.clone(), options)?;
+        Ok((result, value))
+    }
 
-    fs.set("exists", lua.create_function(crate::lua::fs::exists)?)?;
+    fn populate_fs_submodule(&self, args: &Args) -> Result<mlua::Table> {
+        let fs = crate::lua::utils::get_or_create_sub_module(&self.lua, "fs")?;
 
-    Ok(fs)
-}
+        let paths = self.lua.create_table()?;
+        fs.set("paths", &paths)?;
+        let home_dir = crate::utils::get_home_dir()?;
+        paths.set("home", crate::fs::sanitize_path(&home_dir)?)?;
 
-fn create_straw_module(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
-    let module = crate::lua::utils::get_or_create_module(lua, "straw")?;
+        let dotfiles_dir = crate::utils::get_dotfiles_path(args)?;
+        if let Some(dotfiles_dir) = dotfiles_dir.to_str() {
+            paths.set("dotfiles", crate::fs::sanitize_path(dotfiles_dir)?)?;
+        }
 
-    let inspect: mlua::Function = lua
-        .load(
-            r#"
+        fs.set(
+            "create_symlink",
+            self.lua.create_function(crate::lua::fs::create_symlink)?,
+        )?;
+
+        fs.set(
+            "create_dir",
+            self.lua.create_function(crate::lua::fs::create_dir)?,
+        )?;
+        fs.set(
+            "remove_dir",
+            self.lua.create_function(crate::lua::fs::remove_dir)?,
+        )?;
+
+        fs.set(
+            "remove",
+            self.lua.create_function(crate::lua::fs::remove_file)?,
+        )?;
+
+        fs.set(
+            "read",
+            self.lua.create_function(crate::lua::fs::read_text_file)?,
+        )?;
+        fs.set(
+            "write",
+            self.lua.create_function(crate::lua::fs::write_text_file)?,
+        )?;
+        fs.set(
+            "read_bin",
+            self.lua.create_function(crate::lua::fs::read_bin_file)?,
+        )?;
+        fs.set(
+            "write_bin",
+            self.lua.create_function(crate::lua::fs::write_bin_file)?,
+        )?;
+        fs.set(
+            "get_file_type",
+            self.lua.create_function(crate::lua::fs::get_file_type)?,
+        )?;
+
+        fs.set("exists", self.lua.create_function(crate::lua::fs::exists)?)?;
+
+        Ok(fs)
+    }
+
+    fn create_straw_module(&self, args: &Args) -> Result<mlua::Table> {
+        let module = crate::lua::utils::get_or_create_module(&self.lua, "straw")?;
+
+        let inspect: mlua::Function = self
+            .lua
+            .load(
+                r#"
                 function inspect(tbl, indent)
                     indent = indent or 0
                     for k, v in pairs(tbl) do
@@ -102,13 +115,14 @@ fn create_straw_module(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
 
                 return inspect
             "#,
-        )
-        .eval()?;
-    module.set("inspect", inspect)?;
+            )
+            .eval()?;
+        module.set("inspect", inspect)?;
 
-    let find_module: mlua::Function = lua
-        .load(
-            r#"
+        let find_module: mlua::Function = self
+            .lua
+            .load(
+                r#"
                 function (name)
                     if package.loaded[name] then
                         return require(name)
@@ -124,33 +138,53 @@ fn create_straw_module(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
                     end
                 end
             "#,
-        )
-        .eval()?;
-    module.set("find_module", find_module)?;
+            )
+            .eval()?;
+        module.set("find_module", find_module)?;
 
-    module.set("args", lua.to_value(&args)?)?;
+        module.set("args", self.lua.to_value(&args)?)?;
 
-    module.set("hostname", whoami::fallible::hostname()?)?;
-    module.set("user", whoami::fallible::username()?)?;
+        module.set("hostname", whoami::fallible::hostname()?)?;
+        module.set("user", whoami::fallible::username()?)?;
 
-    let straw_args = args.clone();
-    module.set(
-        "exec",
-        lua.create_function(
-            move |lua: &mlua::Lua,
-                  (program, process_args, silent): (String, Vec<String>, bool)|
-                  -> std::result::Result<String, mlua::Error> {
-                crate::lua::system::exec(lua, &straw_args, (program, process_args, silent))
-            },
-        )?,
-    )?;
+        let straw_args = args.clone();
+        module.set(
+            "exec",
+            self.lua.create_function(
+                move |lua: &mlua::Lua,
+                      (program, process_args, silent): (String, Vec<String>, bool)|
+                      -> std::result::Result<String, mlua::Error> {
+                    crate::lua::system::exec(lua, &straw_args, (program, process_args, silent))
+                },
+            )?,
+        )?;
 
-    populate_fs_submodule(lua, args)?;
+        self.populate_fs_submodule(args)?;
 
-    #[cfg(windows)]
-    module.set("platform", "windows")?;
-    #[cfg(unix)]
-    module.set("platform", "unix")?;
+        #[cfg(windows)]
+        module.set("platform", "windows")?;
+        #[cfg(unix)]
+        module.set("platform", "unix")?;
 
-    Ok(module)
+        Ok(module)
+    }
+
+    fn setup_lua_path(&self, dotfiles_path: &Path) -> Result<()> {
+        let dotfiles_path = dotfiles_path.to_str().unwrap().replace("\\", "/");
+
+        let globals = self.lua.globals();
+        let package: mlua::Table = globals.get("package")?;
+
+        let path: String = package.get("path")?;
+        package.set("path", format!("{dotfiles_path}/.straw/?.lua;{path}"))?;
+
+        let cpath: String = package.get("cpath")?;
+        #[cfg(windows)]
+        let ext = ".dll";
+        #[cfg(unix)]
+        let ext = ".so";
+        package.set("cpath", format!("{dotfiles_path}/.straw/?{ext};{cpath}"))?;
+
+        Ok(())
+    }
 }

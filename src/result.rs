@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 pub type Result<T> = std::result::Result<T, StrawError>;
+pub type LuaResult<T> = std::result::Result<T, mlua::Error>;
 
 #[derive(Debug)]
 pub enum StrawError {

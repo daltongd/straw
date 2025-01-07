@@ -1,12 +1,13 @@
-use crate::{args::Args, result::StrawError};
-
-pub type Result<T> = std::result::Result<T, mlua::Error>;
+use crate::{
+    args::Args,
+    result::{LuaResult, StrawError},
+};
 
 pub fn exec(
     _lua: &mlua::Lua,
     args: &Args,
     (program, process_args, silent): (String, Vec<String>, bool),
-) -> Result<String> {
+) -> LuaResult<String> {
     let output = std::process::Command::new(&program)
         .args(&process_args)
         .current_dir(&crate::utils::get_dotfiles_path(args)?)
@@ -14,6 +15,7 @@ pub fn exec(
 
     let stdout = String::from_utf8(output.stdout).map_err(|e| StrawError::String(e.to_string()))?;
     if !silent {
+        tracing::info!("Executing '{program}' with args {process_args:?}");
         for line in stdout.lines() {
             tracing::info!("{line}");
         }

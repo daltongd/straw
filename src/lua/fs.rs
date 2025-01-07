@@ -3,11 +3,9 @@ use std::{
     path::PathBuf,
 };
 
-use crate::result::StrawError;
+use crate::result::{LuaResult, StrawError};
 
-pub type Result<T> = std::result::Result<T, mlua::Error>;
-
-pub fn read_text_file(_lua: &mlua::Lua, path: String) -> Result<Option<String>> {
+pub fn read_text_file(_lua: &mlua::Lua, path: String) -> LuaResult<Option<String>> {
     match std::fs::File::open(path.replace("~", &crate::utils::get_home_dir()?)) {
         Ok(mut file) => {
             let mut buf = String::new();
@@ -25,7 +23,7 @@ pub fn read_text_file(_lua: &mlua::Lua, path: String) -> Result<Option<String>> 
 pub fn write_text_file(
     _lua: &mlua::Lua,
     (path, content): (String, Option<String>),
-) -> Result<usize> {
+) -> LuaResult<usize> {
     match std::fs::File::create(crate::fs::expand_path(&path)?) {
         Ok(mut file) => {
             let bytes = if let Some(content) = content {
@@ -43,7 +41,7 @@ pub fn write_text_file(
     }
 }
 
-pub fn read_bin_file(_lua: &mlua::Lua, path: String) -> Result<Option<Vec<u8>>> {
+pub fn read_bin_file(_lua: &mlua::Lua, path: String) -> LuaResult<Option<Vec<u8>>> {
     match std::fs::File::open(path.replace("~", &crate::utils::get_home_dir()?)) {
         Ok(mut file) => {
             let mut buf = Vec::new();
@@ -58,7 +56,7 @@ pub fn read_bin_file(_lua: &mlua::Lua, path: String) -> Result<Option<Vec<u8>>> 
     }
 }
 
-pub fn write_bin_file(_lua: &mlua::Lua, (path, bytes): (String, Vec<u8>)) -> Result<usize> {
+pub fn write_bin_file(_lua: &mlua::Lua, (path, bytes): (String, Vec<u8>)) -> LuaResult<usize> {
     let path = std::path::PathBuf::from(crate::fs::expand_path(&path)?);
     match std::fs::File::create(&path) {
         Ok(mut file) => Ok(file.write(&bytes)?),
@@ -70,7 +68,7 @@ pub fn write_bin_file(_lua: &mlua::Lua, (path, bytes): (String, Vec<u8>)) -> Res
     }
 }
 
-pub fn get_file_type(_lua: &mlua::Lua, path: String) -> Result<String> {
+pub fn get_file_type(_lua: &mlua::Lua, path: String) -> LuaResult<String> {
     match std::fs::metadata(path.replace("~", &crate::utils::get_home_dir()?)) {
         Ok(metadata) => {
             if metadata.is_dir() {
@@ -89,18 +87,18 @@ pub fn get_file_type(_lua: &mlua::Lua, path: String) -> Result<String> {
     }
 }
 
-pub fn exists(_lua: &mlua::Lua, path: String) -> Result<bool> {
+pub fn exists(_lua: &mlua::Lua, path: String) -> LuaResult<bool> {
     let path = crate::fs::expand_path(&path)?;
     Ok(PathBuf::from(path).exists())
 }
 
-pub fn remove_file(_lua: &mlua::Lua, path: String) -> Result<()> {
+pub fn remove_file(_lua: &mlua::Lua, path: String) -> LuaResult<()> {
     let path = crate::fs::expand_path(&path)?;
     std::fs::remove_file(path)?;
     Ok(())
 }
 
-pub fn create_dir(_lua: &mlua::Lua, (path, create_parents): (String, bool)) -> Result<()> {
+pub fn create_dir(_lua: &mlua::Lua, (path, create_parents): (String, bool)) -> LuaResult<()> {
     let path = crate::fs::expand_path(&path)?;
     if create_parents {
         std::fs::create_dir_all(&path)?;
@@ -110,7 +108,7 @@ pub fn create_dir(_lua: &mlua::Lua, (path, create_parents): (String, bool)) -> R
     Ok(())
 }
 
-pub fn remove_dir(_lua: &mlua::Lua, (path, remove_files): (String, bool)) -> Result<()> {
+pub fn remove_dir(_lua: &mlua::Lua, (path, remove_files): (String, bool)) -> LuaResult<()> {
     let path = crate::fs::expand_path(&path)?;
     if remove_files {
         std::fs::remove_dir_all(&path)?;
@@ -120,17 +118,9 @@ pub fn remove_dir(_lua: &mlua::Lua, (path, remove_files): (String, bool)) -> Res
     Ok(())
 }
 
-pub fn create_symlink(_lua: &mlua::Lua, (path, target): (String, String)) -> Result<()> {
+pub fn create_symlink(_lua: &mlua::Lua, (path, target): (String, String)) -> LuaResult<()> {
     let path = crate::fs::expand_path(&path)?;
     let target = crate::fs::expand_path(&target)?;
     crate::fs::create_symlink(false, &PathBuf::from(&path), &PathBuf::from(&target))?;
     Ok(())
 }
-
-// pub fn remove_synlink(_lua: &mlua::Lua, path: String) -> Result<()> {
-//     let path = crate::fs::expand_path(&path)?;
-//         crate::fs::remove_symlink_if_exists(&path)?;
-//     Ok(())
-// }
-// TODO: mkdir
-// TODO: create symlink

@@ -5,12 +5,13 @@ use straw::{
     args::{Args, Commands},
     cache::Cache,
     git::config::{MergeFlavor, RepositoryConfig},
+    lua::runtime::LuaRuntime,
     result::{Result, StrawError},
     state::StateInfo,
 };
 
-fn resolve_repo_config(lua: &mlua::Lua, args: &Args) -> Result<RepositoryConfig> {
-    let mut repo_config = straw::lua::run_git_config(lua)?;
+fn resolve_repo_config(runtime: &LuaRuntime, args: &Args) -> Result<RepositoryConfig> {
+    let mut repo_config = straw::lua::run_git_config(runtime)?;
 
     // apply args overrides
     if let Some(branch) = &args.branch {
@@ -66,10 +67,10 @@ fn main() -> Result<()> {
         straw::fs::path_to_string(&dotfiles_path)?
     );
 
-    let lua = straw::lua::create_lua_runtime(&dotfiles_path, &args)?;
+    let runtime = LuaRuntime::new(&dotfiles_path, &args)?;
 
     // Load and execute the git lua config
-    let repo_config = match resolve_repo_config(&lua, &args) {
+    let repo_config = match resolve_repo_config(&runtime, &args) {
         Ok(repo_config) => repo_config,
         Err(e) => {
             tracing::error!("{e}");
@@ -170,7 +171,7 @@ fn main() -> Result<()> {
     }
 
     // Load and execute the lua config
-    let config = straw::lua::run_lua_config(&lua)?;
+    let config = straw::lua::run_lua_config(&runtime)?;
 
     let info = StateInfo {
         target_dir: &target_dir,
