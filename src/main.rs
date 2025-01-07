@@ -7,7 +7,7 @@ use straw::{
     git::config::{MergeFlavor, RepositoryConfig},
     lua::runtime::LuaRuntime,
     result::{Result, StrawError},
-    state::StateInfo,
+    state::State,
 };
 
 fn resolve_repo_config(runtime: &LuaRuntime, args: &Args) -> Result<RepositoryConfig> {
@@ -173,7 +173,7 @@ fn main() -> Result<()> {
     // Load and execute the lua config
     let config = straw::lua::run_lua_config(&runtime)?;
 
-    let info = StateInfo {
+    let state = State {
         target_dir: &target_dir,
         dotfiles_path: dotfiles_path.clone(),
         args: &args,
@@ -193,12 +193,12 @@ fn main() -> Result<()> {
 
     // Apply - Step 1/4: clear deployed packages
     if args.clear || args.apply || packages_specified {
-        straw::packages::clear_deployed_packages(&mut cache, &info)?;
+        straw::packages::clear_deployed_packages(&mut cache, &state)?;
     }
 
     // Apply - Step 2/4: prepare common directory structure before applying the packages onto the system
     if args.apply {
-        let folded_paths = straw::folding::fold(&dotfiles_path, &info)?;
+        let folded_paths = straw::folding::fold(&dotfiles_path, &state)?;
         for path in folded_paths {
             tracing::trace!("Folding: Found path {path:?}");
             if !path.exists() {
@@ -211,7 +211,7 @@ fn main() -> Result<()> {
     // Apply - Step 3/4: apply the packages onto the system
     if packages_specified {
         tracing::info!("Packages specified: {:?}", args.packages);
-        straw::packages::apply_packages(&mut cache, &args.packages, &info)?;
+        straw::packages::apply_packages(&mut cache, &args.packages, &state)?;
     } else if args.apply {
         let mut packages = Vec::new();
         let dotfiles = std::fs::read_dir(&dotfiles_path)?;
@@ -224,7 +224,7 @@ fn main() -> Result<()> {
             }
         }
         tracing::info!("Packages found: {packages:?}");
-        straw::packages::apply_packages(&mut cache, &packages, &info)?;
+        straw::packages::apply_packages(&mut cache, &packages, &state)?;
     }
 
     // Apply - Step 4/4: save the cache

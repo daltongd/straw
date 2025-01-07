@@ -8,13 +8,13 @@ use crate::{
     args::Args,
     cache::Cache,
     result::{Result, StrawError},
-    state::StateInfo,
+    state::State,
 };
 
 fn fold_and_apply(
     cache: &mut Cache,
     name: &str,
-    info: &StateInfo,
+    state: &State,
     from_dir: ReadDir,
     to: PathBuf,
 ) -> Result<()> {
@@ -34,7 +34,7 @@ fn fold_and_apply(
                     let display_path = crate::fs::path_to_string(&existing.path())?;
                     tracing::trace!("{name}: {display_path} exists");
                     let dir = std::fs::read_dir(item.path())?;
-                    fold_and_apply(cache, name, info, dir, to)?;
+                    fold_and_apply(cache, name, state, dir, to)?;
                 }
                 found_existing = true;
             }
@@ -46,18 +46,18 @@ fn fold_and_apply(
 
             tracing::trace!("{name}: Creating symlink");
 
-            crate::fs::remove_symlink_if_exists(info, &to)?;
-            crate::fs::create_symlink(info.args.preview, &from, &to.clone())?;
+            crate::fs::remove_symlink_if_exists(state, &to)?;
+            crate::fs::create_symlink(state.args.preview, &from, &to.clone())?;
             cache.cache_package(name, &to);
-            info.config.call("on_apply", name);
+            state.config.call("on_apply", name);
         }
     }
 
     Ok(())
 }
 
-fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> {
-    let path_override = &info.config.overrides[name];
+fn apply_override(cache: &mut Cache, name: &str, state: &State) -> Result<()> {
+    let path_override = &state.config.overrides[name];
 
     let from = path_override.from.clone();
     let to = path_override.to.clone();
@@ -73,7 +73,7 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
     let to = PathBuf::from_str(to.as_str())
         .map_err(|e| StrawError::String(format!("Can't resolve path: {to:?}. {e:?}")))?;
 
-    crate::fs::remove_symlink_if_exists(info, &to)?;
+    crate::fs::remove_symlink_if_exists(state, &to)?;
 
     if to.exists() && !to.is_symlink() {
         let to = to.display().to_string().replace("\\", "/");
@@ -81,7 +81,7 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
     }
 
     // could be false if the file wasn't successfully removed
-    if !to.exists() || info.args.preview {
+    if !to.exists() || state.args.preview {
         // check if the parent path exists
         if let Some(parent) = to.parent() {
             if !parent.exists() {
@@ -89,26 +89,26 @@ fn apply_override(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()>
             }
         } // else - `to` is root, ignore
 
-        let from_path: PathBuf = crate::utils::get_dotfiles_path(info.args)?
+        let from_path: PathBuf = crate::utils::get_dotfiles_path(state.args)?
             .join(name)
             .join(from);
-        crate::fs::create_symlink(info.args.preview, &from_path, &to.clone())?;
+        crate::fs::create_symlink(state.args.preview, &from_path, &to.clone())?;
         cache.cache_package(name, &to);
     }
 
     Ok(())
 }
 
-fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> {
-    let package_path = &info.dotfiles_path;
+fn apply_package(cache: &mut Cache, name: &str, state: &State) -> Result<()> {
+    let package_path = &state.dotfiles_path;
     let package_path = package_path.join(name);
 
     let package_dir = std::fs::read_dir(&package_path)?;
 
     tracing::trace!("Applying package: {name}");
-    let has_packages = !info.args.packages.is_empty();
-    if (!has_packages && info.config.ignores.contains(&name.into()))
-        || info.args.ignore.contains(&name.into())
+    let has_packages = !state.args.packages.is_empty();
+    if (!has_packages && state.config.ignores.contains(&name.into()))
+        || state.args.ignore.contains(&name.into())
     {
         tracing::trace!("Ignoring {name}");
         return Ok(());
@@ -117,35 +117,35 @@ fn apply_package(cache: &mut Cache, name: &str, info: &StateInfo) -> Result<()> 
     let deployed_links_for_package = cache.find_deployed_links(name);
     let deployed_links = cache.get_deployed_packages_mut();
     for (i, link) in deployed_links_for_package.iter().rev() {
-        crate::fs::remove_symlink_if_exists(info, &PathBuf::from(link))?;
+        crate::fs::remove_symlink_if_exists(state, &PathBuf::from(link))?;
         deployed_links.remove(*i);
     }
 
-    if info.config.overrides.contains_key(name) {
-        apply_override(cache, name, info)?;
+    if state.config.overrides.contains_key(name) {
+        apply_override(cache, name, state)?;
     } else {
         fold_and_apply(
             cache,
             name,
-            info,
+            state,
             package_dir,
-            PathBuf::from(info.target_dir),
+            PathBuf::from(state.target_dir),
         )?;
     }
 
     Ok(())
 }
 
-pub fn apply_packages(cache: &mut Cache, packages: &Vec<String>, info: &StateInfo) -> Result<()> {
+pub fn apply_packages(cache: &mut Cache, packages: &Vec<String>, state: &State) -> Result<()> {
     for package in packages {
-        apply_package(cache, package, info)?;
+        apply_package(cache, package, state)?;
     }
     Ok(())
 }
 
-pub fn clear_deployed_packages(cache: &mut Cache, info: &StateInfo) -> Result<()> {
+pub fn clear_deployed_packages(cache: &mut Cache, state: &State) -> Result<()> {
     for package in cache.get_deployed_packages() {
-        crate::fs::remove_symlink_if_exists(info, &PathBuf::from(&package.path))?;
+        crate::fs::remove_symlink_if_exists(state, &PathBuf::from(&package.path))?;
     }
     cache.clear();
 

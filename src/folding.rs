@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{result::Result, state::StateInfo};
+use crate::{result::Result, state::State};
 
 #[derive(Default, Debug)]
 pub struct PackageDirEntry {
@@ -12,7 +12,7 @@ pub struct PackageDirEntry {
     packages: Vec<String>,
 }
 
-pub fn fold(dotfiles_path: &Path, info: &StateInfo) -> Result<Vec<PathBuf>> {
+pub fn fold(dotfiles_path: &Path, state: &State) -> Result<Vec<PathBuf>> {
     let mut map = HashMap::new();
     let dir = std::fs::read_dir(dotfiles_path)?;
 
@@ -20,7 +20,7 @@ pub fn fold(dotfiles_path: &Path, info: &StateInfo) -> Result<Vec<PathBuf>> {
         let entry = entry?;
         let package_name = entry.file_name().to_string_lossy().into_owned();
         if !package_name.starts_with(".")
-            && !info.config.ignores.contains(&package_name)
+            && !state.config.ignores.contains(&package_name)
             && entry.file_type()?.is_dir()
         {
             fold_dir(&mut map, &entry, &package_name)?;
