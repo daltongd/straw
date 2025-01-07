@@ -45,6 +45,14 @@ fn populate_fs_submodule(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
 
     fs.set("read", lua.create_function(crate::lua::fs::read_file)?)?;
     fs.set(
+        "read_bin",
+        lua.create_function(crate::lua::fs::read_bin_file)?,
+    )?;
+    fs.set(
+        "write_bin",
+        lua.create_function(crate::lua::fs::write_bin_file)?,
+    )?;
+    fs.set(
         "get_file_type",
         lua.create_function(crate::lua::fs::get_file_type)?,
     )?;

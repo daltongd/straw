@@ -9,7 +9,10 @@ print("username", straw.user)
 print("exists A", straw.fs.exists("~/.dotfiles"))
 print("exists B", straw.fs.exists("~/.drotfiles"))
 
-print("open C", straw.fs.read("~/.dotfiles/.straw/.gitignore"))
+print("open C", "\n", straw.fs.read("~/.dotfiles/.straw/.gitignore"))
+
+print("write bin: bytes written:", straw.fs.write_bin("~/.dotfiles/.straw/test.bin", { 250 }))
+print("read bin:", "\n", straw.inspect(straw.fs.read_bin("~/.dotfiles/.straw/test.bin")))
 
 print("filetype A", straw.fs.get_file_type("~/.dotfiles"))
 print("filetype C", straw.fs.get_file_type("~/.dotfiles/.straw/.gitignore"))

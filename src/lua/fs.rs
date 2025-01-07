@@ -1,4 +1,7 @@
-use std::{io::Read, path::PathBuf};
+use std::{
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 use crate::result::StrawError;
 
@@ -9,6 +12,21 @@ pub fn read_file(_lua: &mlua::Lua, path: String) -> Result<Option<String>> {
         Ok(mut file) => {
             let mut buf = String::new();
             file.read_to_string(&mut buf)?;
+
+            Ok(Some(buf))
+        }
+        Err(e) => Err(StrawError::String(format!(
+            "Could not read '{path}' as string. Reason: {e}"
+        ))
+        .into()),
+    }
+}
+
+pub fn read_bin_file(_lua: &mlua::Lua, path: String) -> Result<Option<Vec<u8>>> {
+    match std::fs::File::open(path.replace("~", &crate::utils::get_home_dir()?)) {
+        Ok(mut file) => {
+            let mut buf = Vec::new();
+            file.read_to_end(&mut buf)?;
 
             Ok(Some(buf))
         }
@@ -42,6 +60,18 @@ pub fn exists(_lua: &mlua::Lua, path: String) -> Result<bool> {
     let path = crate::fs::sanitize_path(&path)?;
     let path = path.replace("~", crate::utils::get_home_dir()?.as_str());
     Ok(PathBuf::from(path).exists())
+}
+
+pub fn write_bin_file(_lua: &mlua::Lua, (path, bytes): (String, Vec<u8>)) -> Result<usize> {
+    let path = std::path::PathBuf::from(crate::fs::expand_path(&path)?);
+    match std::fs::File::create(&path) {
+        Ok(mut file) => Ok(file.write(&bytes)?),
+        Err(e) => Err(StrawError::String(format!(
+            "Could not write to file '{}'. Reason: {e}",
+            path.display()
+        ))
+        .into()),
+    }
 }
 
 // TODO: write to file
