@@ -36,6 +36,33 @@ impl LuaRuntime {
         Ok((result, value))
     }
 
+    pub fn reg_func<F, A, R>(
+        &self,
+        module: &mlua::Table,
+        key: impl mlua::IntoLua,
+        func: F,
+    ) -> Result<mlua::Function>
+    where
+        F: Fn(&mlua::Lua, A) -> mlua::Result<R> + mlua::MaybeSend + 'static,
+        A: mlua::FromLuaMulti,
+        R: mlua::IntoLuaMulti,
+    {
+        let function = self.lua.create_function(func)?;
+        module.set(key, &function)?;
+        Ok(function)
+    }
+
+    pub fn reg_func_from_lua(
+        &self,
+        module: &mlua::Table,
+        key: impl mlua::IntoLua,
+        lua_script: &str,
+    ) -> Result<mlua::Function> {
+        let function: mlua::Function = self.lua.load(lua_script).eval()?;
+        module.set(key, &function)?;
+        Ok(function)
+    }
+
     fn populate_fs_submodule(&self, args: &Args) -> Result<mlua::Table> {
         let fs = crate::lua::utils::get_or_create_sub_module(&self.lua, "fs")?;
 
@@ -49,47 +76,21 @@ impl LuaRuntime {
             paths.set("dotfiles", crate::fs::sanitize_path(dotfiles_dir)?)?;
         }
 
-        fs.set(
-            "create_symlink",
-            self.lua.create_function(crate::lua::fs::create_symlink)?,
-        )?;
+        self.reg_func(&fs, "create_symlink", crate::lua::fs::create_symlink)?;
 
-        fs.set(
-            "create_dir",
-            self.lua.create_function(crate::lua::fs::create_dir)?,
-        )?;
-        fs.set(
-            "remove_dir",
-            self.lua.create_function(crate::lua::fs::remove_dir)?,
-        )?;
+        self.reg_func(&fs, "create_dir", crate::lua::fs::create_dir)?;
+        self.reg_func(&fs, "remove_dir", crate::lua::fs::remove_dir)?;
 
-        fs.set(
-            "remove",
-            self.lua.create_function(crate::lua::fs::remove_file)?,
-        )?;
+        self.reg_func(&fs, "remove", crate::lua::fs::remove_file)?;
 
-        fs.set(
-            "read",
-            self.lua.create_function(crate::lua::fs::read_text_file)?,
-        )?;
-        fs.set(
-            "write",
-            self.lua.create_function(crate::lua::fs::write_text_file)?,
-        )?;
-        fs.set(
-            "read_bin",
-            self.lua.create_function(crate::lua::fs::read_bin_file)?,
-        )?;
-        fs.set(
-            "write_bin",
-            self.lua.create_function(crate::lua::fs::write_bin_file)?,
-        )?;
-        fs.set(
-            "get_file_type",
-            self.lua.create_function(crate::lua::fs::get_file_type)?,
-        )?;
+        self.reg_func(&fs, "read", crate::lua::fs::read_text_file)?;
+        self.reg_func(&fs, "write", crate::lua::fs::write_text_file)?;
 
-        fs.set("exists", self.lua.create_function(crate::lua::fs::exists)?)?;
+        self.reg_func(&fs, "read_bin", crate::lua::fs::read_bin_file)?;
+        self.reg_func(&fs, "write_bin", crate::lua::fs::write_bin_file)?;
+
+        self.reg_func(&fs, "exists", crate::lua::fs::exists)?;
+        self.reg_func(&fs, "get_file_type", crate::lua::fs::get_file_type)?;
 
         Ok(fs)
     }
@@ -97,10 +98,10 @@ impl LuaRuntime {
     fn create_straw_module(&self, args: &Args) -> Result<mlua::Table> {
         let module = crate::lua::utils::get_or_create_module(&self.lua, "straw")?;
 
-        let inspect: mlua::Function = self
-            .lua
-            .load(
-                r#"
+        self.reg_func_from_lua(
+            &module,
+            "inspect",
+            r#"
                 function inspect(tbl, indent)
                     indent = indent or 0
                     for k, v in pairs(tbl) do
@@ -115,14 +116,12 @@ impl LuaRuntime {
 
                 return inspect
             "#,
-            )
-            .eval()?;
-        module.set("inspect", inspect)?;
+        )?;
 
-        let find_module: mlua::Function = self
-            .lua
-            .load(
-                r#"
+        self.reg_func_from_lua(
+            &module,
+            "find_module",
+            r#"
                 function (name)
                     if package.loaded[name] then
                         return require(name)
@@ -138,9 +137,7 @@ impl LuaRuntime {
                     end
                 end
             "#,
-            )
-            .eval()?;
-        module.set("find_module", find_module)?;
+        )?;
 
         module.set("args", self.lua.to_value(&args)?)?;
 
@@ -148,15 +145,14 @@ impl LuaRuntime {
         module.set("user", whoami::fallible::username()?)?;
 
         let straw_args = args.clone();
-        module.set(
+        self.reg_func(
+            &module,
             "exec",
-            self.lua.create_function(
-                move |lua: &mlua::Lua,
-                      (program, process_args, silent): (String, Vec<String>, bool)|
-                      -> std::result::Result<String, mlua::Error> {
-                    crate::lua::system::exec(lua, &straw_args, (program, process_args, silent))
-                },
-            )?,
+            move |lua: &mlua::Lua,
+                  (program, process_args, silent): (String, Vec<String>, bool)|
+                  -> std::result::Result<String, mlua::Error> {
+                crate::lua::system::exec(lua, &straw_args, (program, process_args, silent))
+            },
         )?;
 
         self.populate_fs_submodule(args)?;
