@@ -43,3 +43,8 @@ pub fn exists(_lua: &mlua::Lua, path: String) -> Result<bool> {
     let path = path.replace("~", crate::utils::get_home_dir()?.as_str());
     Ok(PathBuf::from(path).exists())
 }
+
+// TODO: write to file
+// TODO: append to file
+// TODO: mkdir
+// TODO: create symlink

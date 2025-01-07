@@ -105,6 +105,18 @@ fn create_straw_module(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
     module.set("hostname", whoami::fallible::hostname()?)?;
     module.set("user", whoami::fallible::username()?)?;
 
+    let straw_args = args.clone();
+    module.set(
+        "exec",
+        lua.create_function(
+            move |lua: &mlua::Lua,
+                  (program, process_args, silent): (String, Vec<String>, bool)|
+                  -> std::result::Result<String, mlua::Error> {
+                crate::lua::system::exec(lua, &straw_args, (program, process_args, silent))
+            },
+        )?,
+    )?;
+
     populate_fs_submodule(lua, args)?;
 
     #[cfg(windows)]

@@ -17,4 +17,8 @@ print("filetype C", straw.fs.get_file_type("~/.dotfiles/.straw/.gitignore"))
 print("dotfiles path:", straw.fs.paths.dotfiles)
 print("dotfiles path:", straw.fs.paths.home)
 
+straw.exec("ls", { "-la" })
+
+print("ls output:", straw.exec("ls", { "-la" }, true))
+
 print("========= END LUA TEST SECTION =========")
