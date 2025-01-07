@@ -11,8 +11,14 @@ print("exists B", straw.fs.exists("~/.drotfiles"))
 
 print("open C", "\n", straw.fs.read("~/.dotfiles/.straw/.gitignore"))
 
-print("write bin: bytes written:", straw.fs.write_bin("~/.dotfiles/.straw/test.bin", { 250 }))
+print("deleting file")
+straw.fs.remove("~/.dotfiles/.straw/test.bin")
+
+print("write bin: bytes written:", straw.fs.write_bin("~/.dotfiles/.straw/test.bin", { 255, 0, 255 }))
 print("read bin:", "\n", straw.inspect(straw.fs.read_bin("~/.dotfiles/.straw/test.bin")))
+
+print("write txt: bytes written:", straw.fs.write("~/.dotfiles/.straw/test.txt", "yo"))
+print("write txt empty: bytes written:", straw.fs.write("~/.dotfiles/.straw/empty.txt"))
 
 print("filetype A", straw.fs.get_file_type("~/.dotfiles"))
 print("filetype C", straw.fs.get_file_type("~/.dotfiles/.straw/.gitignore"))

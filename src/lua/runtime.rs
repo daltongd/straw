@@ -43,7 +43,27 @@ fn populate_fs_submodule(lua: &mlua::Lua, args: &Args) -> Result<mlua::Table> {
         paths.set("dotfiles", crate::fs::sanitize_path(dotfiles_dir)?)?;
     }
 
-    fs.set("read", lua.create_function(crate::lua::fs::read_file)?)?;
+    fs.set(
+        "create_symlink",
+        lua.create_function(crate::lua::fs::create_symlink)?,
+    )?;
+
+    fs.set(
+        "create_dir",
+        lua.create_function(crate::lua::fs::create_dir)?,
+    )?;
+    fs.set(
+        "remove_dir",
+        lua.create_function(crate::lua::fs::remove_dir)?,
+    )?;
+
+    fs.set("remove", lua.create_function(crate::lua::fs::remove_file)?)?;
+
+    fs.set("read", lua.create_function(crate::lua::fs::read_text_file)?)?;
+    fs.set(
+        "write",
+        lua.create_function(crate::lua::fs::write_text_file)?,
+    )?;
     fs.set(
         "read_bin",
         lua.create_function(crate::lua::fs::read_bin_file)?,
