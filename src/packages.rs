@@ -16,12 +16,12 @@ fn fold_and_apply(
     cache: &mut Cache,
     name: &str,
     state: &State,
-    from_dir: ReadDir,
-    to: PathBuf,
+    target_dir: ReadDir,
+    link_path: PathBuf,
 ) -> Result<()> {
-    for item in from_dir {
+    for item in target_dir {
         let item = item?;
-        let dir = std::fs::read_dir(&to)?;
+        let dir = std::fs::read_dir(&link_path)?;
         let mut found_existing = false;
         for existing in dir {
             let existing = existing?;
@@ -31,7 +31,7 @@ fn fold_and_apply(
                     let item_name = file_name.to_str().ok_or(StrawError::String(
                         "Can't convert '{item_name:?}' to str.".into(),
                     ))?;
-                    let to: PathBuf = PathBuf::from(&to).join(item_name);
+                    let to: PathBuf = PathBuf::from(&link_path).join(item_name);
                     let display_path = crate::fs::path_to_string(&existing.path())?;
                     tracing::trace!("{name}: {display_path} exists");
                     let dir = std::fs::read_dir(item.path())?;
@@ -42,15 +42,22 @@ fn fold_and_apply(
         }
 
         if !found_existing {
-            let from = item.path();
-            let to = to.join(item.file_name());
+            let target_path = item.path();
+            let link_path = link_path.join(item.file_name());
 
             tracing::trace!("{name}: Creating symlink");
 
-            crate::fs::remove_symlink_if_exists(state, &to)?;
-            crate::fs::create_symlink(state.args.preview, &from, &to.clone())?;
-            cache.cache_package(name, &to);
-            state.config.call(LuaCallbacks::ON_APPLY, name);
+            crate::fs::remove_symlink_if_exists(state, &link_path)?;
+            crate::fs::create_symlink(state.args.preview, &target_path, &link_path.clone())?;
+            cache.cache_package(name, &link_path);
+            state.config.call(
+                LuaCallbacks::ON_APPLY,
+                (
+                    name,
+                    crate::fs::path_to_string(&link_path)?,
+                    crate::fs::path_to_string(&target_path)?,
+                ),
+            );
         }
     }
 
@@ -60,43 +67,45 @@ fn fold_and_apply(
 fn apply_override(cache: &mut Cache, name: &str, state: &State) -> Result<()> {
     let path_override = &state.config.overrides[name];
 
-    let from = path_override.from.clone();
-    let to = path_override.to.clone();
+    let target_string = path_override.target.clone();
+    let link_string = path_override.link.clone();
 
     // NOTE: replace the environment variables in paths `%env_var%` on windows or `$env_var`
     // on unix systems
-    let to = crate::fs::expand_path(&to)?;
+    let link_path = crate::fs::expand_path(&link_string)?;
 
-    let display_from = crate::fs::path_to_string(&PathBuf::from(&from))?;
-    let display_to = crate::fs::path_to_string(&PathBuf::from(&to))?;
-    tracing::info!("Found override:\t\t\t{display_from} -> {display_to}");
+    let target_string = crate::fs::sanitize_path(&target_string)?;
+    let link_string = crate::fs::sanitize_path(&link_path)?;
+    tracing::info!("Found override:\t\t\t{link_string} -> {target_string}");
 
-    let to = PathBuf::from_str(to.as_str())
-        .map_err(|e| StrawError::String(format!("Can't resolve path: {to:?}. {e:?}")))?;
+    let link_path = PathBuf::from_str(link_path.as_str())
+        .map_err(|e| StrawError::String(format!("Can't resolve path: {link_path:?}. {e:?}")))?;
 
-    crate::fs::remove_symlink_if_exists(state, &to)?;
+    crate::fs::remove_symlink_if_exists(state, &link_path)?;
 
-    if to.exists() && !to.is_symlink() {
-        let to = to.display().to_string().replace("\\", "/");
-        tracing::warn!("{to} already exists, ignoring");
+    if link_path.exists() && !link_path.is_symlink() {
+        let link_path = link_path.display().to_string().replace("\\", "/");
+        tracing::warn!("{link_path} already exists, ignoring");
     }
 
     // could be false if the file wasn't successfully removed
-    if !to.exists() || state.args.preview {
+    if !link_path.exists() || state.args.preview {
         // check if the parent path exists
-        if let Some(parent) = to.parent() {
+        if let Some(parent) = link_path.parent() {
             if !parent.exists() {
                 crate::fs::create_dir(parent)?;
             }
         } // else - `to` is root, ignore
 
-        let from_path: PathBuf = crate::utils::get_dotfiles_path(state.args)?
+        let target_path: PathBuf = crate::utils::get_dotfiles_path(state.args)?
             .join(name)
-            .join(from);
-        crate::fs::create_symlink(state.args.preview, &from_path, &to.clone())?;
-        cache.cache_package(name, &to);
+            .join(&target_string);
+        crate::fs::create_symlink(state.args.preview, &target_path, &link_path.clone())?;
+        cache.cache_package(name, &link_path);
     }
-    state.config.call(LuaCallbacks::ON_APPLY, name);
+    state
+        .config
+        .call(LuaCallbacks::ON_APPLY, (name, link_string, target_string));
 
     Ok(())
 }

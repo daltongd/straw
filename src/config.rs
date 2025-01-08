@@ -17,8 +17,8 @@ impl LuaCallbacks {
 
 #[derive(Serialize, Deserialize, Debug, Clone, mlua::FromLua)]
 pub struct Override {
-    pub from: String,
-    pub to: String,
+    pub link: String,
+    pub target: String,
 }
 
 #[serde_as]

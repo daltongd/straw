@@ -41,31 +41,31 @@ pub fn path_to_string(path: &Path) -> Result<String> {
     sanitize_path(&path.display().to_string())
 }
 
-pub fn create_symlink(preview: bool, from: &PathBuf, to: &PathBuf) -> Result<()> {
-    let display_from = path_to_string(from)?;
-    let display_to = path_to_string(to)?;
-    if from.is_dir() {
+pub fn create_symlink(preview: bool, target_path: &PathBuf, link_path: &PathBuf) -> Result<()> {
+    let link_string = path_to_string(link_path)?;
+    let target_string = path_to_string(target_path)?;
+    if target_path.is_dir() {
         if !preview {
             #[cfg(windows)]
-            std::os::windows::fs::symlink_dir(from, to)?;
+            std::os::windows::fs::symlink_dir(target_path, link_path)?;
             #[cfg(unix)]
-            std::os::unix::fs::symlink(from, to)?;
+            std::os::unix::fs::symlink(target_path, link_path)?;
         }
-        tracing::info!("Created a directory link:\t\t{display_from} -> {display_to}");
-    } else if from.is_file() {
+        tracing::info!("Created a directory link:\t\t{link_string} -> {target_string}");
+    } else if target_path.is_file() {
         if !preview {
             #[cfg(windows)]
-            std::os::windows::fs::symlink_file(from, to)?;
+            std::os::windows::fs::symlink_file(target_path, link_path)?;
             #[cfg(unix)]
-            std::os::unix::fs::symlink(from, to)?;
+            std::os::unix::fs::symlink(target_path, link_path)?;
         }
-        tracing::info!("Created a file link:\t\t{display_from} -> {display_to}");
-    } else if from.is_symlink() {
+        tracing::info!("Created a file link:\t\t{link_string} -> {target_string}");
+    } else if target_path.is_symlink() {
         return Err(StrawError::String(
             "Linking symlink to a symlink is not supported.".into(),
         ));
     } else {
-        return Err(StrawError::String(format!("Invalid path {display_from}")));
+        return Err(StrawError::String(format!("Invalid path {link_string}")));
     }
 
     Ok(())
