@@ -7,6 +7,7 @@ use std::{
 use crate::{
     args::Args,
     cache::Cache,
+    config::LuaCallbacks,
     result::{Result, StrawError},
     state::State,
 };
@@ -49,7 +50,7 @@ fn fold_and_apply(
             crate::fs::remove_symlink_if_exists(state, &to)?;
             crate::fs::create_symlink(state.args.preview, &from, &to.clone())?;
             cache.cache_package(name, &to);
-            state.config.call("on_apply", name);
+            state.config.call(LuaCallbacks::ON_APPLY, name);
         }
     }
 
@@ -95,6 +96,7 @@ fn apply_override(cache: &mut Cache, name: &str, state: &State) -> Result<()> {
         crate::fs::create_symlink(state.args.preview, &from_path, &to.clone())?;
         cache.cache_package(name, &to);
     }
+    state.config.call(LuaCallbacks::ON_APPLY, name);
 
     Ok(())
 }

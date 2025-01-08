@@ -3,6 +3,18 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
+macro_rules! register_callback {
+    ($i: ident) => {
+        pub const $i: &str = stringify!($i);
+    };
+}
+
+pub struct LuaCallbacks;
+impl LuaCallbacks {
+    register_callback!(ON_APPLY);
+    register_callback!(ON_FILE_CREATED);
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, mlua::FromLua)]
 pub struct Override {
     pub from: String,
@@ -24,6 +36,7 @@ pub struct Config {
 
 impl Config {
     pub fn call(&self, function_name: &str, args: impl mlua::IntoLuaMulti) -> Option<mlua::Value> {
+        let function_name = function_name.to_lowercase();
         if let Some(value) = &self.value {
             if let Some(config) = value.as_table() {
                 if let Ok(function) = config.get::<mlua::Function>(function_name) {
