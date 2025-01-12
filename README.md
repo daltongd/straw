@@ -133,15 +133,21 @@ as in GNU Stow
 - [ ] lua callbacks (e.g. for applying a package/packages, etc.)
 - [ ] configurable one-time deploy by copying the file directly
 
+- [ ] git key selection
+
 Nice to haves:
 
 - [ ] installing packages / running scripts (this could also solve the env vars)
 - [ ] setting the env vars, also cached (might not be feasible, on all platforms,
 also could be set by the shell profile for the most part)
 
+- [ ] plugin manager
+
 Done:
 
 - [~] swappable profiles (via the `.dotfiles` path override)
+
+- [x] utility functions in lua library
 
 - [x] `.dotfiles` path override
 - [x] `target` path override

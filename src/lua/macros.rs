@@ -18,7 +18,6 @@ function! {
     }
 }
 ```
-
 */
 
 macro_rules! function {
