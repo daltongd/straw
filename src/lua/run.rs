@@ -27,7 +27,6 @@ pub fn run_lua_config(runtime: &LuaRuntime) -> Result<Config> {
     match runtime.run::<Config>(
         r#"
             local straw = require("straw");
-            local test = straw.find_module("test")
             local config = straw.find_module("config")
             return config
         "#,

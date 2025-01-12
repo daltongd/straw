@@ -11,7 +11,7 @@ pub struct Args {
 
     /// Synchronize the .dotfiles with a git repository. This performs Commit -> Pull -> Rebase/Merge -> Push
     #[clap(long, short, action)] // default_value = "true"
-    pub sync: bool,
+    pub sync_repo: bool,
 
     /// Apply the packages onto the system
     #[clap(long, short, action)] // default_value = "true"
@@ -50,17 +50,17 @@ pub struct Args {
     pub message: Option<String>,
 
     /// Pull .dotfiles from the repository. This selectively enables the `pull` action, even if
-    /// the Sync flag is not set
+    /// the `--sync-repo` flag is not set
     #[clap(long, action)]
     pub pull: bool,
 
     /// Push .dotfiles to the repository. This selectively enables the `push` action, even if
-    /// the Sync flag is not set
+    /// the `--sync-repo` flag is not set
     #[clap(long, action)]
     pub push: bool,
 
     /// Commit .dotfiles to the repository. This selectively enables the `commit` action, even if
-    /// the Sync flag is not set
+    /// the `--sync-repo` flag is not set
     #[clap(long, action)]
     pub commit: bool,
 
@@ -100,11 +100,26 @@ pub enum Commands {
     /// Get git status
     Status,
 
+    /// Equivalend of `--sync-repo --apply` or `-sa`
+    Sync,
+
     /// Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating
     /// a symlink.
     /// NOTE: This functionality is limited to the paths under your target directory
     Adopt {
         /// Path of the item to adopt
         path: String,
+    },
+
+    /// Run lua script
+    Run {
+        /// lua module, e.g. `test`
+        module: String,
+    },
+
+    /// Execute lua script
+    Execute {
+        /// lua script
+        script: String,
     },
 }

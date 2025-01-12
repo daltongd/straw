@@ -33,7 +33,7 @@ fn resolve_repo_config(runtime: &LuaRuntime, args: &Args) -> Result<RepositoryCo
 }
 
 fn main() -> Result<()> {
-    let args = Args::parse();
+    let mut args = Args::parse();
 
     #[cfg(debug_assertions)]
     let max_log_level = tracing::Level::TRACE;
@@ -121,15 +121,38 @@ fn main() -> Result<()> {
                 }
                 return Ok(());
             }
+            Commands::Sync => {
+                args.sync_repo = true;
+                args.apply = true;
+            }
             Commands::Adopt { path } => {
                 straw::packages::adopt(&args, path, &target_dir, &dotfiles_path)?;
+                return Ok(());
+            }
+            Commands::Run { module } => {
+                runtime.run::<()>(&format!(
+                    r#"
+                        require("{module}")
+                        return nil
+                    "#
+                ))?;
+                return Ok(());
+            }
+            Commands::Execute { script } => {
+                runtime.run::<()>(&format!(
+                    r#"
+                        local straw = require("straw")
+                        {script}
+                        return nil
+                    "#
+                ))?;
                 return Ok(());
             }
         }
     }
 
     // Sync - Step 1/3: commit local changes
-    if args.sync || args.commit || args.message.is_some() {
+    if args.sync_repo || args.commit || args.message.is_some() {
         // commit changes
         match straw::git::ops::commit_changes(&args, &dotfiles_path, &repo_config) {
             Ok(any_changes_committed) => {
@@ -146,7 +169,7 @@ fn main() -> Result<()> {
     }
 
     // Sync - Step 2/3: update the local dotfiles
-    if args.sync || args.pull {
+    if args.sync_repo || args.pull {
         // update git repo
         match straw::git::ops::update_dotfiles(&args, &dotfiles_path, &repo_config) {
             Ok(_) => tracing::info!("Update: .dotfiles updated"),
@@ -155,7 +178,7 @@ fn main() -> Result<()> {
     }
 
     // Sync - Step 3/3: push local changes to the repo
-    if args.sync || args.push {
+    if args.sync_repo || args.push {
         match straw::git::ops::push_changes(&args, &dotfiles_path, &repo_config) {
             Ok(any_changes_pushed) => {
                 if any_changes_pushed {
