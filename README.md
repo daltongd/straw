@@ -133,7 +133,8 @@ as in GNU Stow
 - [ ] lua callbacks (e.g. for applying a package/packages, etc.)
 - [ ] configurable one-time deploy by copying the file directly
 
-- [ ] git key selection
+- [ ] git ssh key selection
+- [ ] simple test suite
 
 Nice to haves:
 
