@@ -142,6 +142,7 @@ Nice to haves:
 also could be set by the shell profile for the most part)
 
 - [ ] plugin manager
+- [ ] git lua bindings
 
 Done:
 
