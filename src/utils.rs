@@ -5,7 +5,7 @@ use crate::{
     result::{Result, StrawError},
 };
 
-const DOTFILES_DIRS: [&str; 3] = [".dotfiles/", "dotfiles/", "dot-dotfiles/"];
+pub const DOTFILES_DIRS: [&str; 3] = [".dotfiles/", "dotfiles/", "dot-dotfiles/"];
 
 // this is not free, but relatively low-cost. would be nice to cache the home_dir somehow though
 pub fn get_home_dir() -> Result<String> {
@@ -46,9 +46,7 @@ pub fn get_dotfiles_path(args: &Args) -> Result<PathBuf> {
                 break;
             }
         }
-        result.ok_or(StrawError::String(
-            "Couldn't find the dotfiles directory. Names tried {DOTFILES_DIRS:?}".into(),
-        ))?
+        result.unwrap_or([&target_dir, *DOTFILES_DIRS.first().expect("DOTFILES_DIRS should never be empty.")].iter().collect::<PathBuf>())
     };
 
     Ok(dotfiles_path)

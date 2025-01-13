@@ -93,7 +93,7 @@ fn apply_override(cache: &mut Cache, name: &str, state: &State) -> Result<()> {
         // check if the parent path exists
         if let Some(parent) = link_path.parent() {
             if !parent.exists() {
-                crate::fs::create_dir(parent)?;
+                std::fs::create_dir_all(parent)?;
             }
         } // else - `to` is root, ignore
 

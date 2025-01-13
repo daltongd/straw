@@ -1,5 +1,4 @@
 use crate::args::Args;
-use crate::fs;
 use crate::result::Result;
 use git2::BranchType;
 use std::path::{Path, PathBuf};
@@ -7,7 +6,7 @@ use std::path::{Path, PathBuf};
 pub use crate::git::status::get_status;
 
 pub fn clone(args: &Args, url: &str, target_path: &Path) -> Result<()> {
-    let display_path = fs::path_to_string(target_path)?;
+    let display_path = crate::fs::path_to_string(target_path)?;
     tracing::info!("Clone: cloning {url} into {display_path}");
 
     if !args.preview {
@@ -32,6 +31,7 @@ pub fn fetch<'a>(
     repository: &'a git2::Repository,
     remote: &'a mut git2::Remote,
     refs: &[&str],
+    depth: i32,
 ) -> Result<git2::AnnotatedCommit<'a>> {
     // git sync
     let auth = auth_git2::GitAuthenticator::default();
@@ -64,6 +64,7 @@ pub fn fetch<'a>(
 
     let mut fo = git2::FetchOptions::new();
     fo.remote_callbacks(callback);
+    fo.depth(depth);
     // Always fetch all tags.
     // Perform a download and also update tips
     fo.download_tags(git2::AutotagOption::All);
@@ -227,7 +228,89 @@ pub fn update_dotfiles(
     }
     let repository = git2::Repository::open(path)?;
     let mut remote = repository.find_remote(&repo_config.remote)?;
-    let head = fetch(&repository, &mut remote, &[&repo_config.branch])?;
+    let head = fetch(&repository, &mut remote, &[&repo_config.branch], 1)?;
     crate::git::merge::merge(&repository, &head, repo_config)?;
+    Ok(())
+}
+
+pub fn patch(
+    args: &Args,
+    url: impl AsRef<str>,
+    remote_patch_path: impl AsRef<Path>,
+    patch_target: impl AsRef<Path>,
+    dotfiles_path: impl AsRef<Path>,
+    force: bool,
+) -> Result<()> {
+    let url = url.as_ref();
+    let remote_patch_path = remote_patch_path.as_ref();
+    let temp_root = dotfiles_path.as_ref().join(".straw/.tmp/patch");
+    let temp_path = temp_root.join(&patch_target);
+    let patch_target = dotfiles_path.as_ref().join(patch_target);
+
+    let patch_target_string = crate::fs::path_to_string(&patch_target)?;
+    let temp_path_string = crate::fs::path_to_string(&temp_path)?;
+    let remote_patch_path_string = crate::fs::path_to_string(remote_patch_path)?;
+
+    if !args.preview {
+        if temp_path.exists() {
+            if temp_path.is_dir() {
+                std::fs::remove_dir_all(&temp_path)?;
+            } else {
+                std::fs::remove_file(&temp_path)?;
+            }
+        }
+
+        if patch_target.exists() {
+            if force {
+                if patch_target.is_dir() {
+                    std::fs::remove_dir_all(&patch_target)?;
+                } else {
+                    std::fs::remove_file(&patch_target)?;
+                }
+            } else {
+                return Err(crate::result::StrawError::String(format!("Error: could not apply the patch. Path `{patch_target_string}` already exists. Use `--force` to overwrite.")));
+            }
+        }
+
+        let auth = auth_git2::GitAuthenticator::default();
+        let auth = auth.add_default_ssh_keys();
+
+        let git_config = git2::Config::open_default()?;
+        let mut fetch_options = git2::FetchOptions::new();
+        fetch_options.depth(1);
+        let mut remote_callbacks = git2::RemoteCallbacks::new();
+
+        let mut checkout_options = git2::build::CheckoutBuilder::new();
+        checkout_options.path(remote_patch_path);
+
+        let mut repo_builder = git2::build::RepoBuilder::new();
+        repo_builder.with_checkout(checkout_options);
+
+        remote_callbacks.credentials(auth.credentials(&git_config));
+        fetch_options.remote_callbacks(remote_callbacks);
+        repo_builder.fetch_options(fetch_options);
+
+        tracing::info!(
+            "Patch: cloning '{remote_patch_path_string}' from {url} into '{temp_path_string}'"
+        );
+        repo_builder.clone(url, &temp_path)?;
+
+        tracing::info!("Patch: applying patch to '{patch_target_string}'");
+        let from = temp_path.join(remote_patch_path);
+        if from.is_dir() {
+            crate::fs::copy_dir_all(&temp_path.join(remote_patch_path), &patch_target)?;
+        } else {
+            if !patch_target.exists() {
+                std::fs::create_dir_all(&patch_target)?;
+            }
+            tracing::trace!(
+                "{} -> {}",
+                from.display(),
+                patch_target.join(remote_patch_path_string).display()
+            );
+            std::fs::copy(&from, patch_target.join(remote_patch_path))?;
+        }
+        std::fs::remove_dir_all(temp_root)?;
+    }
     Ok(())
 }

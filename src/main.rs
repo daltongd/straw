@@ -148,6 +148,15 @@ fn main() -> Result<()> {
                 ))?;
                 return Ok(());
             }
+            Commands::Patch {
+                url,
+                remote_root,
+                patch_path,
+                force,
+            } => {
+                straw::git::ops::patch(&args, url, remote_root, patch_path, dotfiles_path, *force)?;
+                return Ok(());
+            }
         }
     }
 

@@ -111,6 +111,22 @@ pub enum Commands {
         path: String,
     },
 
+    /// Patch your dotfiles with a file or a directory from a remote repository
+    Patch {
+        /// remote url
+        url: String,
+
+        /// path to remote file or directory
+        remote_root: String,
+
+        /// target path
+        patch_path: String,
+
+        /// replace if exists
+        #[clap(long, action)]
+        force: bool,
+    },
+
     /// Run lua script
     Run {
         /// lua module, e.g. `test`

@@ -87,12 +87,15 @@ pub fn remove_symlink_if_exists(state: &State, link_path: &PathBuf) -> Result<()
     Ok(())
 }
 
-pub fn create_dir(dir: &Path) -> Result<()> {
-    if let Some(parent) = dir.parent() {
-        if !parent.exists() {
-            return create_dir(parent);
+pub fn copy_dir_all(from: &Path, to: &Path) -> Result<()> {
+    std::fs::create_dir_all(to)?;
+    for dir_entry in std::fs::read_dir(from)? {
+        let entry = dir_entry?;
+        if entry.file_type()?.is_dir() {
+            copy_dir_all(&entry.path(), &to.join(entry.file_name()))?;
+        } else {
+            std::fs::copy(entry.path(), to.join(entry.file_name()))?;
         }
     }
-
-    std::fs::create_dir(dir).map_err(StrawError::Io)
+    Ok(())
 }
