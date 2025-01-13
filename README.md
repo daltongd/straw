@@ -132,7 +132,6 @@ as in GNU Stow
 - [ ] lua callbacks (e.g. for applying a package/packages, etc.)
 - [ ] configurable one-time deploy by copying the file directly
 
-- [ ] git ssh key selection
 - [ ] simple test suite
 
 Nice to haves:
@@ -150,6 +149,7 @@ Done:
 
 - [x] patches - ability to get a specific directory/file from any dotfiles repository
 - [x] utility functions in lua library
+- [x] git ssh key selection
 
 - [x] `.dotfiles` path override
 - [x] `target` path override
