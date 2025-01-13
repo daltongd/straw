@@ -102,6 +102,8 @@ impl LuaRuntime {
         self.reg_func(&git, "init", crate::lua::git::init)?;
         self.reg_func(&git, "commit", crate::lua::git::commit)?;
         self.reg_func(&git, "status", crate::lua::git::status)?;
+        self.reg_func(&git, "pull", crate::lua::git::pull)?;
+        self.reg_func(&git, "push", crate::lua::git::push)?;
 
         Ok(git)
     }

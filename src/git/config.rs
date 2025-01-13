@@ -1,3 +1,4 @@
+use mlua::FromLua;
 use serde::{Deserialize, Serialize};
 
 // TODO: move remote and branch (and flavor?) to `GitDefaults`
@@ -21,7 +22,7 @@ impl Default for RepositoryConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, FromLua)]
 pub enum MergeFlavor {
     #[default]
     Rebase,
