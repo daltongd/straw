@@ -316,7 +316,7 @@ pub fn patch(
         tracing::info!("Patch: applying patch to '{patch_target_string}'");
         let from = temp_path.join(remote_patch_path);
         if from.is_dir() {
-            crate::fs::copy_dir_all(&temp_path.join(remote_patch_path), &patch_target)?;
+            std::fs::rename(temp_path.join(remote_patch_path), &patch_target)?;
         } else {
             if !patch_target.exists() {
                 std::fs::create_dir_all(&patch_target)?;
@@ -326,7 +326,7 @@ pub fn patch(
                 crate::fs::path_to_string(&from)?,
                 crate::fs::path_to_string(&patch_target.join(remote_patch_path_string))?,
             );
-            std::fs::copy(&from, patch_target.join(remote_patch_path))?;
+            std::fs::rename(&from, patch_target.join(remote_patch_path))?;
         }
         std::fs::remove_dir_all(temp_root)?;
     }
