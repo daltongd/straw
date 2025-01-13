@@ -95,6 +95,17 @@ impl LuaRuntime {
         Ok(fs)
     }
 
+    fn populate_git_submodule(&self) -> Result<mlua::Table> {
+        let git = crate::lua::utils::get_or_create_sub_module(&self.lua, "git")?;
+
+        self.reg_func(&git, "clone", crate::lua::git::clone)?;
+        self.reg_func(&git, "init", crate::lua::git::init)?;
+        self.reg_func(&git, "commit", crate::lua::git::commit)?;
+        self.reg_func(&git, "status", crate::lua::git::status)?;
+
+        Ok(git)
+    }
+
     fn create_straw_module(&self, args: &Args) -> Result<mlua::Table> {
         let module = crate::lua::utils::get_or_create_module(&self.lua, "straw")?;
 
@@ -156,6 +167,7 @@ impl LuaRuntime {
         )?;
 
         self.populate_fs_submodule(args)?;
+        self.populate_git_submodule()?;
 
         #[cfg(windows)]
         module.set("platform", "windows")?;

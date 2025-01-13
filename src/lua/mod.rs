@@ -1,4 +1,5 @@
 pub mod fs;
+pub mod git;
 pub mod macros;
 pub mod run;
 pub mod runtime;

@@ -46,7 +46,15 @@ pub fn get_dotfiles_path(args: &Args) -> Result<PathBuf> {
                 break;
             }
         }
-        result.unwrap_or([&target_dir, *DOTFILES_DIRS.first().expect("DOTFILES_DIRS should never be empty.")].iter().collect::<PathBuf>())
+        let fallback_path = [
+            &target_dir,
+            *DOTFILES_DIRS
+                .first()
+                .expect("DOTFILES_DIRS should never be empty."),
+        ]
+        .iter()
+        .collect::<PathBuf>();
+        result.unwrap_or(fallback_path)
     };
 
     Ok(dotfiles_path)
