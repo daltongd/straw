@@ -137,7 +137,6 @@ as in GNU Stow
 Nice to haves:
 
 - [ ] plugin manager
-- [ ] git lua bindings
 
 - [ ] setting the env vars, also cached for ease of reverting them later
 (might not be feasible, on all platforms, also could be set by the shell
@@ -145,6 +144,7 @@ profile for the most part)
 
 Done:
 
+- [~] git lua bindings (unstable)
 - [~] swappable profiles (via the `.dotfiles` path override)
 
 - [x] patches - ability to get a specific directory/file from any dotfiles repository
