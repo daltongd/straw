@@ -127,7 +127,6 @@ In the overrides:
 
 ## Todos
 
-- [ ] patches - ability to get a specific directory/file from any dotfiles repository
 - [ ] additional option for dotfiles handling by replacing `dot-` with a period `.`
 as in GNU Stow
 - [ ] lua callbacks (e.g. for applying a package/packages, etc.)
@@ -149,6 +148,7 @@ Done:
 
 - [~] swappable profiles (via the `.dotfiles` path override)
 
+- [x] patches - ability to get a specific directory/file from any dotfiles repository
 - [x] utility functions in lua library
 
 - [x] `.dotfiles` path override

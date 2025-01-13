@@ -113,7 +113,7 @@ pub enum Commands {
 
     /// Patch your dotfiles with a file or a directory from a remote repository
     Patch {
-        /// remote url
+        /// url to a git repository
         url: String,
 
         /// path to remote file or directory

@@ -242,6 +242,12 @@ pub fn patch(
     force: bool,
 ) -> Result<()> {
     let url = url.as_ref();
+    let url = if url.contains("https://") || url.contains("ssh://") || url.contains("http://") {
+        url
+    } else {
+        &format!("https://github.com/{}.git", url)
+    };
+
     let remote_patch_path = remote_patch_path.as_ref();
     let temp_root = dotfiles_path.as_ref().join(".straw/.tmp/patch");
     let temp_path = temp_root.join(&patch_target);
@@ -304,9 +310,9 @@ pub fn patch(
                 std::fs::create_dir_all(&patch_target)?;
             }
             tracing::trace!(
-                "{} -> {}",
-                from.display(),
-                patch_target.join(remote_patch_path_string).display()
+                "Patch: copying '{}' -> '{}'",
+                crate::fs::path_to_string(&from)?,
+                crate::fs::path_to_string(&patch_target.join(remote_patch_path_string))?,
             );
             std::fs::copy(&from, patch_target.join(remote_patch_path))?;
         }
