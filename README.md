@@ -136,12 +136,12 @@ as in GNU Stow
 
 Nice to haves:
 
-- [ ] installing packages / running scripts (this could also solve the env vars)
-- [ ] setting the env vars, also cached (might not be feasible, on all platforms,
-also could be set by the shell profile for the most part)
-
 - [ ] plugin manager
 - [ ] git lua bindings
+
+- [ ] setting the env vars, also cached for ease of reverting them later
+(might not be feasible, on all platforms, also could be set by the shell
+profile for the most part)
 
 Done:
 
@@ -150,6 +150,7 @@ Done:
 - [x] patches - ability to get a specific directory/file from any dotfiles repository
 - [x] utility functions in lua library
 - [x] git ssh key selection
+- [x] installing packages / running scripts
 
 - [x] `.dotfiles` path override
 - [x] `target` path override
