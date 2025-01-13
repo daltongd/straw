@@ -134,15 +134,18 @@ fn main() -> Result<()> {
                 return Ok(());
             }
             Commands::Run { module } => {
+                tracing::info!("Run: Running {module}");
                 runtime.run::<()>(&format!(
                     r#"
                         require("{module}")
                         return nil
                     "#
                 ))?;
+                tracing::info!("Run: Done running {module}");
                 return Ok(());
             }
             Commands::Execute { script } => {
+                tracing::info!("Executing the script");
                 runtime.run::<()>(&format!(
                     r#"
                         local straw = require("straw")
@@ -150,6 +153,7 @@ fn main() -> Result<()> {
                         return nil
                     "#
                 ))?;
+                tracing::info!("Execute: Done executing the script");
                 return Ok(());
             }
             Commands::Patch {

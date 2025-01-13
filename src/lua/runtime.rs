@@ -150,7 +150,7 @@ impl LuaRuntime {
             "exec",
             move |lua: &mlua::Lua,
                   (program, process_args, silent): (String, Vec<String>, bool)|
-                  -> std::result::Result<String, mlua::Error> {
+                  -> crate::result::LuaResult<Option<i32>> {
                 crate::lua::system::exec(lua, &straw_args, (program, process_args, silent))
             },
         )?;

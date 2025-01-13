@@ -7,7 +7,7 @@ pub fn exec(
     _lua: &mlua::Lua,
     args: &Args,
     (program, process_args, silent): (String, Vec<String>, bool),
-) -> LuaResult<String> {
+) -> LuaResult<Option<i32>> {
     let output = std::process::Command::new(&program)
         .args(&process_args)
         .current_dir(&crate::utils::get_dotfiles_path(args)?)
@@ -25,13 +25,13 @@ pub fn exec(
         for line in stderr.lines() {
             tracing::error!("{line}");
         }
+
+        if output.status.success() {
+            tracing::info!("{program} exited with {}", output.status);
+        } else {
+            tracing::error!("{program} exited with {}", output.status);
+        }
     }
 
-    if output.status.success() {
-        tracing::info!("{program} exited with {}", output.status);
-    } else {
-        tracing::error!("{program} exited with {}", output.status);
-    }
-
-    Ok(stdout)
+    Ok(output.status.code())
 }
