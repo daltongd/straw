@@ -5,13 +5,24 @@ use std::path::{Path, PathBuf};
 
 pub use crate::git::status::get_status;
 
+fn add_ssh_keys(
+    args: &Args,
+    auth: auth_git2::GitAuthenticator,
+) -> Result<auth_git2::GitAuthenticator> {
+    let auth = auth.add_default_ssh_keys();
+    if let Some(ssh_key_path) = &args.ssh_key_path {
+        return Ok(auth.add_ssh_key_from_file(ssh_key_path, None));
+    }
+    Ok(auth)
+}
+
 pub fn clone(args: &Args, url: &str, target_path: &Path) -> Result<()> {
     let display_path = crate::fs::path_to_string(target_path)?;
     tracing::info!("Clone: cloning {url} into {display_path}");
 
     if !args.preview {
         let auth = auth_git2::GitAuthenticator::default();
-        let auth = auth.add_default_ssh_keys();
+        let auth = add_ssh_keys(args, auth)?;
         auth.clone_repo(url, target_path)?;
     }
     Ok(())
@@ -28,6 +39,7 @@ pub fn init(path: &PathBuf, origin_url: Option<String>) -> Result<()> {
 }
 
 pub fn fetch<'a>(
+    args: &Args,
     repository: &'a git2::Repository,
     remote: &'a mut git2::Remote,
     refs: &[&str],
@@ -35,7 +47,7 @@ pub fn fetch<'a>(
 ) -> Result<git2::AnnotatedCommit<'a>> {
     // git sync
     let auth = auth_git2::GitAuthenticator::default();
-    let auth = auth.add_default_ssh_keys();
+    let auth = add_ssh_keys(args, auth)?;
 
     let git_config = git2::Config::open_default()?;
     let mut callback = git2::RemoteCallbacks::new();
@@ -198,7 +210,7 @@ pub fn push_changes(
     }
 
     let auth = auth_git2::GitAuthenticator::default();
-    let auth = auth.add_default_ssh_keys();
+    let auth = add_ssh_keys(args, auth)?;
 
     let git_config = git2::Config::open_default()?;
     let mut callback = git2::RemoteCallbacks::new();
@@ -228,7 +240,7 @@ pub fn update_dotfiles(
     }
     let repository = git2::Repository::open(path)?;
     let mut remote = repository.find_remote(&repo_config.remote)?;
-    let head = fetch(&repository, &mut remote, &[&repo_config.branch], 1)?;
+    let head = fetch(args, &repository, &mut remote, &[&repo_config.branch], 1)?;
     crate::git::merge::merge(&repository, &head, repo_config)?;
     Ok(())
 }
@@ -279,7 +291,7 @@ pub fn patch(
         }
 
         let auth = auth_git2::GitAuthenticator::default();
-        let auth = auth.add_default_ssh_keys();
+        let auth = add_ssh_keys(args, auth)?;
 
         let git_config = git2::Config::open_default()?;
         let mut fetch_options = git2::FetchOptions::new();

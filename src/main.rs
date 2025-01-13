@@ -34,6 +34,10 @@ fn resolve_repo_config(runtime: &LuaRuntime, args: &Args) -> Result<RepositoryCo
 
 fn main() -> Result<()> {
     let mut args = Args::parse();
+    args.ssh_key_path = match args.ssh_key_path {
+        Some(ssh_key_path) => Some(straw::fs::sanitize_path(&ssh_key_path)?),
+        None => None,
+    };
 
     #[cfg(debug_assertions)]
     let max_log_level = tracing::Level::TRACE;

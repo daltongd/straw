@@ -78,6 +78,10 @@ pub struct Args {
     #[clap(long)]
     pub target: Option<String>,
 
+    /// Direct path to the ssh key (by default looks for a standard-named key in the `~/.ssh/` dir)
+    #[clap(long)]
+    pub ssh_key_path: Option<String>,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
