@@ -12,7 +12,7 @@ pub struct PackageDirEntry {
     packages: Vec<String>,
 }
 
-pub fn fold(dotfiles_path: &Path, state: &State) -> Result<Vec<PathBuf>> {
+pub fn fold_dotfiles(dotfiles_path: &Path, state: &State) -> Result<Vec<PathBuf>> {
     let mut map = HashMap::new();
     let dir = std::fs::read_dir(dotfiles_path)?;
 

@@ -165,6 +165,15 @@ fn main() -> Result<()> {
                 straw::git::ops::patch(&args, url, remote_root, patch_path, dotfiles_path, *force)?;
                 return Ok(());
             }
+            Commands::CopyFiles { packages } => {
+                for package in packages {
+                    tracing::info!("{package}");
+                    // straw::packages::fold_and_copy(package, args, target_dir)
+                }
+
+                todo!();
+                // return Ok(());
+            }
         }
     }
 
@@ -238,7 +247,7 @@ fn main() -> Result<()> {
 
     // Apply - Step 2/4: prepare common directory structure before applying the packages onto the system
     if args.apply {
-        let folded_paths = straw::folding::fold(&dotfiles_path, &state)?;
+        let folded_paths = straw::folding::fold_dotfiles(&dotfiles_path, &state)?;
         for path in folded_paths {
             tracing::trace!("Folding: Found path {path:?}");
             if !path.exists() {

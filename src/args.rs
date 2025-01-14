@@ -104,8 +104,19 @@ pub enum Commands {
     /// Get git status
     Status,
 
+    /// Synchronize the .dotfiles (commit, push, pull, merge/rebase) and apply the packages
+    /// according to the config
     /// Equivalend of `--sync-repo --apply` or `-sa`
     Sync,
+
+    /// Copy the specified package(s) over instead of creating symlinks
+    /// Useful in combination with ignores if you'd like to only copy the initial config
+    /// and not manage with straw
+    CopyFiles {
+        /// List of packages to copy over to their destinations
+        #[clap(num_args(1..))]
+        packages: Vec<String>,
+    },
 
     /// Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating
     /// a symlink.
