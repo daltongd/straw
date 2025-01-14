@@ -87,14 +87,20 @@ pub fn remove_symlink_if_exists(state: &State, link_path: &PathBuf) -> Result<()
     Ok(())
 }
 
-pub fn copy_dir_all(from: &Path, to: &Path) -> Result<()> {
-    std::fs::create_dir_all(to)?;
+pub fn copy_dir_all(from: &Path, to: &Path, overwrite: bool) -> Result<()> {
+    if !to.exists() {
+        std::fs::create_dir_all(to)?;
+    }
     for dir_entry in std::fs::read_dir(from)? {
         let entry = dir_entry?;
         if entry.file_type()?.is_dir() {
-            copy_dir_all(&entry.path(), &to.join(entry.file_name()))?;
+            copy_dir_all(&entry.path(), &to.join(entry.file_name()), overwrite)?;
         } else {
-            std::fs::copy(entry.path(), to.join(entry.file_name()))?;
+            let target_file = to.join(entry.file_name());
+            if target_file.exists() && overwrite {
+                std::fs::remove_file(&target_file)?;
+            }
+            std::fs::copy(entry.path(), &target_file)?;
         }
     }
     Ok(())

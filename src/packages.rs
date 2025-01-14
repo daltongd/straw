@@ -12,6 +12,33 @@ use crate::{
     state::State,
 };
 
+pub fn copy_files(
+    runtime: &crate::lua::runtime::LuaRuntime,
+    package: &str,
+    dotfiles_path: &Path,
+    overwrite: bool,
+) -> Result<()> {
+    let config = crate::lua::run_lua_config(runtime)?;
+    if let Some(path_override) = &config.overrides.get(package) {
+        std::fs::copy(&path_override.target, &path_override.link)?;
+        Ok(())
+    } else {
+        Ok(())
+    }
+}
+
+fn copy_all(from: impl AsRef<Path>, to: impl AsRef<Path>, overwrite: bool) -> Result<()> {
+    let from = from.as_ref();
+    let to = to.as_ref();
+
+    if let Ok(target_dir) = std::fs::read_dir(to) {
+    } else {
+        std::fs::copy(from, to)?;
+    }
+
+    Ok(())
+}
+
 fn fold_and_apply(
     cache: &mut Cache,
     name: &str,

@@ -127,6 +127,7 @@ In the overrides:
 
 ## Todos
 
+- [ ] undo/clear
 - [ ] additional option for dotfiles handling by replacing `dot-` with a period `.`
 as in GNU Stow
 - [ ] lua callbacks (e.g. for applying a package/packages, etc.)

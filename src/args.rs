@@ -116,6 +116,10 @@ pub enum Commands {
         /// List of packages to copy over to their destinations
         #[clap(num_args(1..))]
         packages: Vec<String>,
+
+        /// Overwrite if exists
+        #[clap(action)]
+        overwrite: bool,
     },
 
     /// Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating

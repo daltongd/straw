@@ -165,7 +165,10 @@ fn main() -> Result<()> {
                 straw::git::ops::patch(&args, url, remote_root, patch_path, dotfiles_path, *force)?;
                 return Ok(());
             }
-            Commands::CopyFiles { packages } => {
+            Commands::CopyFiles {
+                packages,
+                overwrite,
+            } => {
                 for package in packages {
                     tracing::info!("{package}");
                     // straw::packages::fold_and_copy(package, args, target_dir)
