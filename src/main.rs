@@ -170,12 +170,14 @@ fn main() -> Result<()> {
                 overwrite,
             } => {
                 for package in packages {
-                    tracing::info!("{package}");
-                    // straw::packages::fold_and_copy(package, args, target_dir)
+                    tracing::info!(
+                        "Copying package '{package}', overwrite: {}",
+                        if *overwrite { "yes" } else { "no" }
+                    );
+                    straw::packages::copy_files(&runtime, package, &dotfiles_path, *overwrite)?;
                 }
 
-                todo!();
-                // return Ok(());
+                return Ok(());
             }
         }
     }

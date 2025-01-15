@@ -18,25 +18,24 @@ pub fn copy_files(
     dotfiles_path: &Path,
     overwrite: bool,
 ) -> Result<()> {
+    let home_dir = crate::utils::get_home_dir()?;
     let config = crate::lua::run_lua_config(runtime)?;
     if let Some(path_override) = &config.overrides.get(package) {
-        std::fs::copy(&path_override.target, &path_override.link)?;
+        let from = dotfiles_path.join(crate::fs::expand_path(&path_override.target)?);
+        let to = PathBuf::from(crate::fs::expand_path(&path_override.link)?);
+        tracing::info!(
+            "Found override: {} -> {}",
+            crate::fs::display_path(&from)?,
+            crate::fs::display_path(&to)?,
+        );
+        crate::fs::copy_dir_all(&from, &to, overwrite)?;
         Ok(())
     } else {
+        let from = dotfiles_path.join(package);
+        let to = PathBuf::from(home_dir);
+        crate::fs::copy_dir_all(&from, &to, overwrite)?;
         Ok(())
     }
-}
-
-fn copy_all(from: impl AsRef<Path>, to: impl AsRef<Path>, overwrite: bool) -> Result<()> {
-    let from = from.as_ref();
-    let to = to.as_ref();
-
-    if let Ok(target_dir) = std::fs::read_dir(to) {
-    } else {
-        std::fs::copy(from, to)?;
-    }
-
-    Ok(())
 }
 
 fn fold_and_apply(

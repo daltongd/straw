@@ -118,7 +118,7 @@ pub enum Commands {
         packages: Vec<String>,
 
         /// Overwrite if exists
-        #[clap(action)]
+        #[clap(long, action)]
         overwrite: bool,
     },
 

@@ -87,9 +87,17 @@ pub fn remove_symlink_if_exists(state: &State, link_path: &PathBuf) -> Result<()
     Ok(())
 }
 
+pub fn display_path(path: impl AsRef<Path>) -> Result<String> {
+    let result = sanitize_path(&path_to_string(path.as_ref())?)?;
+    Ok(result)
+}
+
 pub fn copy_dir_all(from: &Path, to: &Path, overwrite: bool) -> Result<()> {
     if !to.exists() {
+        tracing::info!("Created {} -> {}", display_path(from)?, display_path(to)?);
         std::fs::create_dir_all(to)?;
+    } else {
+        tracing::trace!("{} already exists, skipping", display_path(to)?);
     }
     for dir_entry in std::fs::read_dir(from)? {
         let entry = dir_entry?;
@@ -97,10 +105,27 @@ pub fn copy_dir_all(from: &Path, to: &Path, overwrite: bool) -> Result<()> {
             copy_dir_all(&entry.path(), &to.join(entry.file_name()), overwrite)?;
         } else {
             let target_file = to.join(entry.file_name());
-            if target_file.exists() && overwrite {
+            let exists = target_file.exists();
+            if exists && overwrite {
                 std::fs::remove_file(&target_file)?;
+                tracing::info!(
+                    "Overwrite {} -> {}",
+                    display_path(entry.path())?,
+                    display_path(&target_file)?,
+                );
+            } else if !exists {
+                std::fs::copy(entry.path(), &target_file)?;
+                tracing::info!(
+                    "Copy {} -> {}",
+                    display_path(entry.path())?,
+                    display_path(&target_file)?
+                );
+            } else {
+                tracing::warn!(
+                    "{} exists, skipping. Use `--overwrite` to overwrite the existing file.",
+                    display_path(entry.path())?,
+                );
             }
-            std::fs::copy(entry.path(), &target_file)?;
         }
     }
     Ok(())
