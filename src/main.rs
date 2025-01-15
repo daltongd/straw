@@ -170,11 +170,20 @@ fn main() -> Result<()> {
                 overwrite,
             } => {
                 for package in packages {
+                    if args.preview {
+                        tracing::warn!("Running in `preview` mode. No changes will be applied.");
+                    }
                     tracing::info!(
                         "Copying package '{package}', overwrite: {}",
                         if *overwrite { "yes" } else { "no" }
                     );
-                    straw::packages::copy_files(&runtime, package, &dotfiles_path, *overwrite)?;
+                    straw::packages::copy_files(
+                        &runtime,
+                        package,
+                        &dotfiles_path,
+                        args.preview,
+                        *overwrite,
+                    )?;
                 }
 
                 return Ok(());

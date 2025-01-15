@@ -92,34 +92,45 @@ pub fn display_path(path: impl AsRef<Path>) -> Result<String> {
     Ok(result)
 }
 
-pub fn copy_dir_all(from: &Path, to: &Path, overwrite: bool) -> Result<()> {
+pub fn copy_dir_all(from: &Path, to: &Path, preview: bool, overwrite: bool) -> Result<()> {
     if !to.exists() {
         tracing::info!("Created {} -> {}", display_path(from)?, display_path(to)?);
-        std::fs::create_dir_all(to)?;
+        if !preview {
+            std::fs::create_dir_all(to)?;
+        }
     } else {
         tracing::trace!("{} already exists, skipping", display_path(to)?);
     }
     for dir_entry in std::fs::read_dir(from)? {
         let entry = dir_entry?;
         if entry.file_type()?.is_dir() {
-            copy_dir_all(&entry.path(), &to.join(entry.file_name()), overwrite)?;
+            copy_dir_all(
+                &entry.path(),
+                &to.join(entry.file_name()),
+                preview,
+                overwrite,
+            )?;
         } else {
             let target_file = to.join(entry.file_name());
             let exists = target_file.exists();
             if exists && overwrite {
-                std::fs::remove_file(&target_file)?;
                 tracing::info!(
                     "Overwrite {} -> {}",
                     display_path(entry.path())?,
                     display_path(&target_file)?,
                 );
+                if !preview {
+                    std::fs::remove_file(&target_file)?;
+                }
             } else if !exists {
-                std::fs::copy(entry.path(), &target_file)?;
                 tracing::info!(
                     "Copy {} -> {}",
                     display_path(entry.path())?,
                     display_path(&target_file)?
                 );
+                if !preview {
+                    std::fs::copy(entry.path(), &target_file)?;
+                }
             } else {
                 tracing::warn!(
                     "{} exists, skipping. Use `--overwrite` to overwrite the existing file.",

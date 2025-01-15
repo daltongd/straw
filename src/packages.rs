@@ -16,6 +16,7 @@ pub fn copy_files(
     runtime: &crate::lua::runtime::LuaRuntime,
     package: &str,
     dotfiles_path: &Path,
+    preview: bool,
     overwrite: bool,
 ) -> Result<()> {
     let home_dir = crate::utils::get_home_dir()?;
@@ -28,12 +29,17 @@ pub fn copy_files(
             crate::fs::display_path(&from)?,
             crate::fs::display_path(&to)?,
         );
-        crate::fs::copy_dir_all(&from, &to, overwrite)?;
+        crate::fs::copy_dir_all(&from, &to, preview, overwrite)?;
         Ok(())
     } else {
         let from = dotfiles_path.join(package);
         let to = PathBuf::from(home_dir);
-        crate::fs::copy_dir_all(&from, &to, overwrite)?;
+        tracing::info!(
+            "Copying: {} -> {}",
+            crate::fs::display_path(&from)?,
+            crate::fs::display_path(&to)?,
+        );
+        crate::fs::copy_dir_all(&from, &to, preview, overwrite)?;
         Ok(())
     }
 }
