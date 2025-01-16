@@ -127,11 +127,7 @@ In the overrides:
 
 ## Todos
 
-- [ ] undo/clear
-- [ ] additional option for dotfiles handling by replacing `dot-` with a period `.`
-as in GNU Stow
 - [ ] lua callbacks (e.g. for applying a package/packages, etc.)
-- [ ] configurable one-time deploy by copying the file directly
 
 - [ ] simple test suite
 
@@ -139,7 +135,12 @@ Nice to haves:
 
 - [ ] plugin manager
 
-- [ ] setting the env vars, also cached for ease of reverting them later
+On Hold:
+
+- [!] additional option for dotfiles handling by replacing `dot-` with a period `.`
+as in GNU Stow. this one is tricky, because this can only work up until some level in the level structure
+
+- [!] setting the env vars, also cached for ease of reverting them later
 (might not be feasible, on all platforms, also could be set by the shell
 profile for the most part)
 
@@ -148,6 +149,8 @@ Done:
 - [~] git lua bindings (unstable)
 - [~] swappable profiles (via the `.dotfiles` path override)
 
+- [x] undo/clear
+- [x] configurable one-time deploy by copying the file directly
 - [x] patches - ability to get a specific directory/file from any dotfiles repository
 - [x] utility functions in lua library
 - [x] git ssh key selection
