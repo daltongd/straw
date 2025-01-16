@@ -53,6 +53,7 @@ fn fold_and_apply(
 ) -> Result<()> {
     for item in target_dir {
         let item = item?;
+        tracing::trace!("link_path: {}", link_path.display());
         let dir = std::fs::read_dir(&link_path)?;
         let mut found_existing = false;
         for existing in dir {

@@ -109,6 +109,18 @@ pub enum Commands {
     /// Equivalend of `--sync-repo --apply` or `-sa`
     Sync,
 
+    // TODO: Consider this
+    //
+    // /// Clear packages
+    // Clear {
+    //     /// List of packages to clear.
+    //     /// If no packages are provided, clears all deployed packages.
+    //     #[clap(num_args(1..))]
+    //     packages: Vec<String>,
+    // },
+    /// Equivalent of `--clear`
+    Clear,
+
     /// Copy the specified package(s) over instead of creating symlinks
     /// Useful in combination with ignores if you'd like to only copy the initial config
     /// and not manage with straw

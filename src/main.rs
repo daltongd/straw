@@ -188,6 +188,9 @@ fn main() -> Result<()> {
 
                 return Ok(());
             }
+            Commands::Clear => {
+                args.clear = true;
+            }
         }
     }
 
