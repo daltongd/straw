@@ -138,7 +138,7 @@ In the overrides:
 
 ## Todos
 
-- [ ] lua callbacks (e.g. for applying a package/packages, etc.)
+- [ ] lua hooks (callbacks, e.g. for applying a package/packages, etc.)
 
 - [ ] simple test suite
 
