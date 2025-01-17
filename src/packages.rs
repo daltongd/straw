@@ -80,7 +80,7 @@ fn fold_and_apply(
 
             tracing::trace!("{name}: Creating symlink");
 
-            crate::fs::remove_symlink_if_exists(state, &link_path)?;
+            crate::fs::remove_symlink_if_exists(&link_path, state.args.preview)?;
             crate::fs::create_symlink(state.args.preview, &target_path, &link_path.clone())?;
             cache.cache_package(name, &link_path);
             state.config.call(
@@ -114,7 +114,7 @@ fn apply_override(cache: &mut Cache, name: &str, state: &State) -> Result<()> {
     let link_path = PathBuf::from_str(link_path.as_str())
         .map_err(|e| StrawError::String(format!("Can't resolve path: {link_path:?}. {e:?}")))?;
 
-    crate::fs::remove_symlink_if_exists(state, &link_path)?;
+    crate::fs::remove_symlink_if_exists(&link_path, state.args.preview)?;
 
     if link_path.exists() && !link_path.is_symlink() {
         let link_path = link_path.display().to_string().replace("\\", "/");
@@ -161,7 +161,7 @@ fn apply_package(cache: &mut Cache, name: &str, state: &State) -> Result<()> {
     let deployed_links_for_package = cache.find_deployed_links(name);
     let deployed_links = cache.get_deployed_packages_mut();
     for (i, link) in deployed_links_for_package.iter().rev() {
-        crate::fs::remove_symlink_if_exists(state, &PathBuf::from(link))?;
+        crate::fs::remove_symlink_if_exists(&PathBuf::from(link), state.args.preview)?;
         deployed_links.remove(*i);
     }
 
@@ -187,9 +187,9 @@ pub fn apply_packages(cache: &mut Cache, packages: &Vec<String>, state: &State) 
     Ok(())
 }
 
-pub fn clear_deployed_packages(cache: &mut Cache, state: &State) -> Result<()> {
+pub fn clear_deployed_packages(cache: &mut Cache, preview: bool) -> Result<()> {
     for package in cache.get_deployed_packages() {
-        crate::fs::remove_symlink_if_exists(state, &PathBuf::from(&package.path))?;
+        crate::fs::remove_symlink_if_exists(&PathBuf::from(&package.path), preview)?;
     }
     cache.clear();
 

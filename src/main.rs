@@ -188,8 +188,39 @@ fn main() -> Result<()> {
 
                 return Ok(());
             }
-            Commands::Clear => {
-                args.clear = true;
+            Commands::Clear { packages } => {
+                let cache_path = &dotfiles_path.join(".straw/.cache");
+                let mut cache = if let Ok(cached_packages) = Cache::read(cache_path) {
+                    tracing::trace!("Cached packages found: {cached_packages:?}");
+                    cached_packages
+                } else {
+                    Cache::new(cache_path)
+                };
+
+                if packages.is_empty() {
+                    straw::packages::clear_deployed_packages(&mut cache, args.preview)?;
+                    return Ok(());
+                }
+
+                let deployed_packages = cache.get_deployed_packages();
+                let mut removed_link_ids = vec![];
+                for (i, package) in deployed_packages.iter().rev().enumerate() {
+                    if packages.contains(&package.name) {
+                        straw::fs::remove_symlink_if_exists(
+                            &PathBuf::from(&package.path),
+                            args.preview,
+                        )?;
+                    }
+                    removed_link_ids.push(i);
+                }
+
+                removed_link_ids.sort();
+                for id in removed_link_ids.iter().rev() {
+                    cache.get_deployed_packages_mut().remove(*id);
+                }
+                cache.save()?;
+
+                return Ok(());
             }
         }
     }
@@ -259,7 +290,7 @@ fn main() -> Result<()> {
 
     // Apply - Step 1/4: clear deployed packages
     if args.clear || args.apply || packages_specified {
-        straw::packages::clear_deployed_packages(&mut cache, &state)?;
+        straw::packages::clear_deployed_packages(&mut cache, state.args.preview)?;
     }
 
     // Apply - Step 2/4: prepare common directory structure before applying the packages onto the system

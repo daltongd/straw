@@ -2,10 +2,7 @@ use std::path::{Path, PathBuf};
 
 use lazy_regex::{Captures, Regex};
 
-use crate::{
-    result::{Result, StrawError},
-    state::State,
-};
+use crate::result::{Result, StrawError};
 
 #[cfg(windows)]
 pub static ENV_VAR_REGEX: lazy_regex::Lazy<Regex> = lazy_regex::lazy_regex!(r"%(\w+)%");
@@ -71,11 +68,11 @@ pub fn create_symlink(preview: bool, target_path: &PathBuf, link_path: &PathBuf)
     Ok(())
 }
 
-pub fn remove_symlink_if_exists(state: &State, link_path: &PathBuf) -> Result<()> {
+pub fn remove_symlink_if_exists(link_path: &PathBuf, preview: bool) -> Result<()> {
     if link_path.exists() && link_path.is_symlink() {
         let display_path = path_to_string(link_path)?;
         tracing::info!("Removing the existing link:\t{display_path}");
-        if !state.args.preview {
+        if !preview {
             if link_path.is_dir() {
                 std::fs::remove_dir_all(link_path)?;
             } else if link_path.is_file() {
