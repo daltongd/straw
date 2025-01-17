@@ -4,7 +4,11 @@
     </h1>
     <p>
         <strong>
-        an opinionated take on <a href="https://www.gnu.org/software/stow/">GNU Stow</a> with <a href="https://git-scm.com/">git</a>-based sync capabilities with an optional <a href="https://www.lua.org/">lua</a>-based config
+            an opinionated take on
+            <a href="https://www.gnu.org/software/stow/">GNU Stow</a>
+            with <a href="https://git-scm.com/">git</a>-based
+            sync capabilities with an optional
+            <a href="https://www.lua.org/">lua</a>-based config
         </strong>
     </p>
     <hr />
@@ -42,7 +46,8 @@ You can also clone this repo and compile it yourself.
 ## Usage
 
 straw expects your configs to be in a stow-like directory structure under your
-`~/.dotfiles` directory. Directories within `~/.dotfiles` with names that begin with a dot (`.`, e.g. -> `.straw`) are ignored and not treated as packages.
+`~/.dotfiles` directory. Directories within `~/.dotfiles` with names that begin with
+a dot (`.`, e.g. -> `.straw`) are ignored and not treated as packages.
 
 To clone your dotfiles repo to this path, use:
 
@@ -93,25 +98,31 @@ local straw = require("straw")
 local config = {}
 
 config.git = {
- remote = "origin",
- branch = "main",
+    remote = "origin",
+    branch = "main",
 }
 
 config.overrides = {}
 
 if straw.platform == "windows" then
- config.overrides["powershell"] = {
-  from = "Microsoft.PowerShell_profile.ps1",
-  to = "%userprofile%/Documents/PowerShell/Microsoft.PowerShell_profile.ps1",
- }
- config.overrides["nvim"] = { from = ".config/nvim", to = "%localappdata%/nvim" }
- config.overrides["yazi"] = { from = ".config/yazi", to = "%appdata%/yazi/config" }
+    config.overrides["powershell"] = {
+        link = "%userprofile%/Documents/PowerShell/Microsoft.PowerShell_profile.ps1",
+        target = "Microsoft.PowerShell_profile.ps1",
+    }
+    config.overrides["nvim"] = {
+        link = "%localappdata%/nvim"
+        target = ".config/nvim",
+    }
+    config.overrides["yazi"] = {
+        link = "%appdata%/yazi/config"
+        target = ".config/yazi",
+    }
 end
 
 if straw.platform == "windows" then
- config.ignores = { "fish" }
+    config.ignores = { "fish" }
 elseif straw.platform == "unix" then
- config.ignores = { "komorebi", "whkd", "winfetch", "powershell", "wpm" }
+    config.ignores = { "komorebi", "whkd", "winfetch", "powershell", "wpm" }
 end
 
 return config
@@ -138,7 +149,8 @@ Nice to haves:
 On Hold:
 
 - [!] additional option for dotfiles handling by replacing `dot-` with a period `.`
-as in GNU Stow. this one is tricky, because this can only work up until some level in the level structure
+as in GNU Stow. this one is tricky, because this can only work up until some level
+in the directory structure
 
 - [!] setting the env vars, also cached for ease of reverting them later
 (might not be feasible, on all platforms, also could be set by the shell
