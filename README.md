@@ -138,7 +138,7 @@ In the overrides:
 
 ## Help
 
-```bash
+```
 ❯ straw --help
 Usage: straw.exe [OPTIONS] [COMMAND]
 
@@ -176,9 +176,6 @@ Options:
       --ssh-key-path <SSH_KEY_PATH>  Direct path to the ssh key (by default looks for a standard-named key in the `~/.ssh/` dir)
   -h, --help                         Print help
   -V, --version                      Print version
-```
-
-```
 ```
 
 ## Todos

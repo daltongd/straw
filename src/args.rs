@@ -109,8 +109,6 @@ pub enum Commands {
     /// Equivalend of `--sync-repo --apply` or `-sa`
     Sync,
 
-    // TODO: Consider this
-    //
     /// Clear packages
     Clear {
         /// List of packages to clear.
