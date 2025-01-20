@@ -138,7 +138,7 @@ In the overrides:
 
 ## Help
 
-```
+```txt
 ❯ straw --help
 Usage: straw.exe [OPTIONS] [COMMAND]
 
@@ -146,36 +146,36 @@ Commands:
   clone       Clone a git repository into ~/.dotfiles
   init        Init a git repository in ~/.dotfiles, you can also provide the origin url
   status      Get git status
-  sync        Synchronize the .dotfiles (commit, push, pull, merge/rebase) and apply the packages according to the config Equivalend of `--sync-repo --apply` or `-sa`
+  sync        Synchronize the .dotfiles (commit, push, pull, merge/rebase) and apply the packages according to the config. Equivalend of `--sync-repo --apply` or `-sa`
   clear       Clear packages
-  copy-files  Copy the specified package(s) over instead of creating symlinks Useful in combination with ignores if you'd like to only copy the initial config and not manage with straw
-  adopt       Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating a symlink. NOTE: This functionality is limited to the paths under your target directory
+  copy-files  Copy the specified package(s) over instead of creating symlinks. Useful in combination with ignores if you'd like to only copy the initial config and not manage with straw
+  adopt       Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating a symlink NOTE: This functionality is limited to the paths under your target directory
   patch       Patch your dotfiles with a file or a directory from a remote repository
-  run         Run lua script
+  run         Run lua module
   execute     Execute lua script
   help        Print this message or the help of the given subcommand(s)
 
 Options:
-  -p, --preview                      Replace the existing symlinks with symlinks to .dotfiles
-  -s, --sync-repo                    Synchronize the .dotfiles with a git repository. This performs Commit -> Pull -> Rebase/Merge -> Push
-  -a, --apply                        Apply the packages onto the system
-  -c, --clear                        Clear all deployed symlinks
-      --packages <PACKAGES>...       Specify packages to apply. Implies `--apply`, overrides ignores from the config
-      --ignore <IGNORE>...           Specify packages to ignore when applying the config
-      --remote <REMOTE>              Override git remote setting for this operation
-      --branch <BRANCH>              Override git branch setting for this operation
-      --merge-commit                 Set the merge flavor to a merge commit
-      --rebase                       Set the merge flavor to rebase
-  -m, --message <MESSAGE>            Set the commit message. Implies `--commit`
-      --pull                         Pull .dotfiles from the repository. This selectively enables the `pull` action, even if the `--sync-repo` flag is not set
-      --push                         Push .dotfiles to the repository. This selectively enables the `push` action, even if the `--sync-repo` flag is not set
-      --commit                       Commit .dotfiles to the repository. This selectively enables the `commit` action, even if the `--sync-repo` flag is not set
-      --adopt <ADOPT>                Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating a symlink. NOTE: This functionality is limited to the paths under your target directory
-      --dotfiles <DOTFILES>          Override the default `~/.dotfiles` path
-      --target <TARGET>              Override the target path (default: `~`)
-      --ssh-key-path <SSH_KEY_PATH>  Direct path to the ssh key (by default looks for a standard-named key in the `~/.ssh/` dir)
-  -h, --help                         Print help
-  -V, --version                      Print version
+  -p, --preview                Preview the operation. Prints the messages, but doesn't perform any operations
+  -s, --sync-repo              Synchronize the .dotfiles with a git repository. Performs Commit -> Pull -> Rebase/Merge -> Push
+  -a, --apply                  Apply the packages onto the system
+  -c, --clear                  Clear all deployed symlinks
+      --packages <PACKAGE>...  Specify packages to apply. Implies `--apply`, overrides ignores from the config
+      --ignore <PACKAGE>...    Specify packages to ignore when applying the config
+      --remote <REMOTE>        Override git remote setting for this operation
+      --branch <BRANCH>        Override git branch setting for this operation
+      --merge-commit           Set the merge flavor to a merge commit
+      --rebase                 Set the merge flavor to rebase
+  -m, --message <MESSAGE>      Set the commit message. Implies `--commit`
+      --pull                   Pull .dotfiles from the repository. This selectively enables the `pull` action, even if the `--sync-repo` flag is not set
+      --push                   Push .dotfiles to the repository. This selectively enables the `push` action, even if the `--sync-repo` flag is not set
+      --commit                 Commit .dotfiles to the repository. This selectively enables the `commit` action, even if the `--sync-repo` flag is not set
+      --adopt <PACKAGE>        Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating a symlink. NOTE: This functionality is limited to the paths under your target directory
+      --dotfiles <PATH>        Override the default `~/.dotfiles` path
+      --target <PATH>          Override the target path (default: `~`)
+      --ssh-key-path <PATH>    Direct path to the ssh key (by default looks for a standard-named key in the `~/.ssh/` dir)
+  -h, --help                   Print help
+  -V, --version                Print version
 ```
 
 ## Todos

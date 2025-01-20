@@ -5,16 +5,16 @@ use serde::{Deserialize, Serialize};
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 pub struct Args {
-    /// Replace the existing symlinks with symlinks to .dotfiles
+    /// Preview the operation. Prints the messages, but doesn't perform any operations
     #[clap(long, short, action)]
     pub preview: bool,
 
-    /// Synchronize the .dotfiles with a git repository. This performs Commit -> Pull -> Rebase/Merge -> Push
-    #[clap(long, short, action)] // default_value = "true"
+    /// Synchronize the .dotfiles with a git repository. Performs Commit -> Pull -> Rebase/Merge -> Push
+    #[clap(long, short, action)]
     pub sync_repo: bool,
 
     /// Apply the packages onto the system
-    #[clap(long, short, action)] // default_value = "true"
+    #[clap(long, short, action)]
     pub apply: bool,
 
     /// Clear all deployed symlinks
@@ -22,11 +22,11 @@ pub struct Args {
     pub clear: bool,
 
     /// Specify packages to apply. Implies `--apply`, overrides ignores from the config
-    #[clap(long, num_args(1..))]
+    #[clap(long, num_args(1..), value_name = "PACKAGE")]
     pub packages: Vec<String>,
 
     /// Specify packages to ignore when applying the config
-    #[clap(long, num_args(1..))]
+    #[clap(long, num_args(1..), value_name = "PACKAGE")]
     pub ignore: Vec<String>,
 
     /// Override git remote setting for this operation
@@ -67,19 +67,19 @@ pub struct Args {
     /// Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating
     /// a symlink.
     /// NOTE: This functionality is limited to the paths under your target directory
-    #[clap(long)]
+    #[clap(long, value_name = "PACKAGE")]
     pub adopt: Option<String>,
 
     /// Override the default `~/.dotfiles` path
-    #[clap(long)]
+    #[clap(long, value_name = "PATH")]
     pub dotfiles: Option<String>,
 
     /// Override the target path (default: `~`)
-    #[clap(long)]
+    #[clap(long, value_name = "PATH")]
     pub target: Option<String>,
 
     /// Direct path to the ssh key (by default looks for a standard-named key in the `~/.ssh/` dir)
-    #[clap(long)]
+    #[clap(long, value_name = "PATH")]
     pub ssh_key_path: Option<String>,
 
     #[command(subcommand)]
@@ -105,7 +105,7 @@ pub enum Commands {
     Status,
 
     /// Synchronize the .dotfiles (commit, push, pull, merge/rebase) and apply the packages
-    /// according to the config
+    /// according to the config.
     /// Equivalend of `--sync-repo --apply` or `-sa`
     Sync,
 
@@ -117,12 +117,12 @@ pub enum Commands {
         packages: Vec<String>,
     },
 
-    /// Copy the specified package(s) over instead of creating symlinks
+    /// Copy the specified package(s) over instead of creating symlinks.
     /// Useful in combination with ignores if you'd like to only copy the initial config
     /// and not manage with straw
     CopyFiles {
         /// List of packages to copy over to their destinations
-        #[clap(num_args(1..))]
+        #[clap(num_args(1..), value_name = "PACKAGE")]
         packages: Vec<String>,
 
         /// Overwrite if exists
@@ -131,7 +131,7 @@ pub enum Commands {
     },
 
     /// Adopt the package by moving the contents of a directory to the `.dotfiles` path and creating
-    /// a symlink.
+    /// a symlink
     /// NOTE: This functionality is limited to the paths under your target directory
     Adopt {
         /// Path of the item to adopt
@@ -154,7 +154,7 @@ pub enum Commands {
         force: bool,
     },
 
-    /// Run lua script
+    /// Run lua module
     Run {
         /// lua module, e.g. `test`
         module: String,
