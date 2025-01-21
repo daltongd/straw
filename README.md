@@ -156,7 +156,7 @@ Commands:
   help        Print this message or the help of the given subcommand(s)
 
 Options:
-  -p, --preview                Preview the operation. Prints the messages, but doesn't perform any operations
+  -p, --preview                Preview the operation. Prints the messages, but doesn't perform any operations. Doesn't work with `run` and `execute` subcommands
   -s, --sync-repo              Synchronize the .dotfiles with a git repository. Performs Commit -> Pull -> Rebase/Merge -> Push
   -a, --apply                  Apply the packages onto the system
   -c, --clear                  Clear all deployed symlinks
