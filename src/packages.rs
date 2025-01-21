@@ -81,7 +81,7 @@ fn fold_and_apply(
             tracing::trace!("{name}: Creating symlink");
 
             crate::fs::remove_symlink_if_exists(&link_path, state.args.preview)?;
-            crate::fs::create_symlink(state.args.preview, &target_path, &link_path.clone())?;
+            crate::fs::create_symlink(&target_path, &link_path.clone(), state.args.preview)?;
             cache.cache_package(name, &link_path);
             state.config.call(
                 LuaCallbacks::ON_APPLY,
@@ -133,7 +133,7 @@ fn apply_override(cache: &mut Cache, name: &str, state: &State) -> Result<()> {
         let target_path: PathBuf = crate::utils::get_dotfiles_path(state.args)?
             .join(name)
             .join(&target_string);
-        crate::fs::create_symlink(state.args.preview, &target_path, &link_path.clone())?;
+        crate::fs::create_symlink(&target_path, &link_path.clone(), state.args.preview)?;
         cache.cache_package(name, &link_path);
     }
     state
@@ -231,7 +231,7 @@ pub fn adopt(args: &Args, path: &str, target_dir: &str, dotfiles_path: &Path) ->
         }
 
         // `target_path` becomes `from` and `source_path` becomes `to`, since we just did the rename
-        crate::fs::create_symlink(args.preview, &target_path, &source_path)?;
+        crate::fs::create_symlink(&target_path, &source_path, args.preview)?;
 
         tracing::info!("Adopt: successfully adopted {:?}", package_name);
     } else {

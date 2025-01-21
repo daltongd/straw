@@ -38,7 +38,7 @@ pub fn path_to_string(path: &Path) -> Result<String> {
     sanitize_path(&path.display().to_string())
 }
 
-pub fn create_symlink(preview: bool, target_path: &PathBuf, link_path: &PathBuf) -> Result<()> {
+pub fn create_symlink(target_path: &PathBuf, link_path: &PathBuf, preview: bool) -> Result<()> {
     let link_string = path_to_string(link_path)?;
     let target_string = path_to_string(target_path)?;
     if target_path.is_dir() {

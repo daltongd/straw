@@ -269,6 +269,10 @@ pub fn patch(
     let temp_path_string = crate::fs::path_to_string(&temp_path)?;
     let remote_patch_path_string = crate::fs::path_to_string(remote_patch_path)?;
 
+    tracing::info!(
+        "Patch: applying patch (remote path '{remote_patch_path_string}' from repository {url}) into local path '{temp_path_string}'"
+    );
+
     if !args.preview {
         if temp_path.exists() {
             if temp_path.is_dir() {

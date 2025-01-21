@@ -135,6 +135,6 @@ function! {
     create_symlink(path: String, target: String) {
         let path = crate::fs::expand_path(&path)?;
         let target = crate::fs::expand_path(&target)?;
-        crate::fs::create_symlink(false, &PathBuf::from(&path), &PathBuf::from(&target))?;
+        crate::fs::create_symlink(&PathBuf::from(&path), &PathBuf::from(&target), false)?;
     }
 }

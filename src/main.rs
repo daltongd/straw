@@ -97,22 +97,37 @@ fn main() -> Result<()> {
                     return Err(e);
                 }
             },
-            Commands::Init { url } => match straw::git::ops::init(&dotfiles_path, url.to_owned()) {
-                Ok(_) => {
-                    tracing::info!(
-                        "Clone: successfully initialized a repository in {}",
-                        dotfiles_path.display()
-                    );
-                    if let Some(origin_url) = url {
-                        tracing::info!("Clone: origin url set to {origin_url}");
-                    }
+            Commands::Init { url } => {
+                let remote_string = if let Some(url) = url {
+                    format!(" with remote '{url}'")
+                } else {
+                    String::new()
+                };
+
+                tracing::info!(
+                    "Init: initializing repository at '{}'{remote_string}",
+                    dotfiles_path.display()
+                );
+                if !args.preview {
                     return Ok(());
                 }
-                Err(e) => {
-                    tracing::error!("Error initializng the repository: {e}");
-                    return Err(e);
+                match straw::git::ops::init(&dotfiles_path, url.to_owned()) {
+                    Ok(_) => {
+                        tracing::info!(
+                            "Init: successfully initialized a repository in {}",
+                            dotfiles_path.display()
+                        );
+                        if let Some(origin_url) = url {
+                            tracing::info!("Init: origin url set to {origin_url}");
+                        }
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        tracing::error!("Error initializng the repository: {e}");
+                        return Err(e);
+                    }
                 }
-            },
+            }
             Commands::Status => {
                 let statuses = straw::git::ops::get_status(&dotfiles_path)?;
                 tracing::info!("Sync: Status");
