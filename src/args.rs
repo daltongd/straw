@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 pub struct Args {
-    /// Preview the operation. Prints the messages, but doesn't perform any operations. Doesn't
-    /// work with `run` and `execute` subcommands
+    /// Preview the operation. Prints the messages, but doesn't perform any operations
     #[clap(long, short, action)]
     pub preview: bool,
 
