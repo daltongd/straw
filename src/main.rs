@@ -10,28 +10,6 @@ use straw::{
     state::State,
 };
 
-fn resolve_repo_config(runtime: &LuaRuntime, args: &Args) -> Result<RepositoryConfig> {
-    let mut repo_config = straw::lua::run_git_config(runtime)?;
-
-    // apply args overrides
-    if let Some(branch) = &args.branch {
-        repo_config.branch = branch.to_owned();
-    }
-    if let Some(remote) = &args.remote {
-        repo_config.remote = remote.to_owned();
-    }
-
-    if args.merge_commit && args.rebase {
-        return Err(StrawError::String("The arguments --rebase and --merge-commit are mutually exclusive. Please use only one at a time.".into()));
-    } else if args.rebase {
-        repo_config.merge_flavor = Some(MergeFlavor::Rebase);
-    } else if args.merge_commit {
-        repo_config.merge_flavor = Some(MergeFlavor::MergeCommit);
-    }
-
-    Ok(repo_config)
-}
-
 fn main() -> Result<()> {
     let mut args = Args::parse();
     args.ssh_key_path = match args.ssh_key_path {
@@ -73,7 +51,7 @@ fn main() -> Result<()> {
 
     let runtime = LuaRuntime::new(&dotfiles_path, &args)?;
 
-    // Load and execute the git lua config
+    // Load and execute the the git config script
     let repo_config = match resolve_repo_config(&runtime, &args) {
         Ok(repo_config) => repo_config,
         Err(e) => {
@@ -349,4 +327,26 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn resolve_repo_config(runtime: &LuaRuntime, args: &Args) -> Result<RepositoryConfig> {
+    let mut repo_config = straw::lua::run_git_config(runtime)?;
+
+    // apply args overrides
+    if let Some(branch) = &args.branch {
+        repo_config.branch = branch.to_owned();
+    }
+    if let Some(remote) = &args.remote {
+        repo_config.remote = remote.to_owned();
+    }
+
+    if args.merge_commit && args.rebase {
+        return Err(StrawError::String("The arguments --rebase and --merge-commit are mutually exclusive. Please use only one at a time.".into()));
+    } else if args.rebase {
+        repo_config.merge_flavor = Some(MergeFlavor::Rebase);
+    } else if args.merge_commit {
+        repo_config.merge_flavor = Some(MergeFlavor::MergeCommit);
+    }
+
+    Ok(repo_config)
 }
