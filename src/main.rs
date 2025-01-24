@@ -294,7 +294,7 @@ fn main() -> Result<()> {
     if args.apply {
         let folded_paths = straw::folding::fold_dotfiles(&dotfiles_path, &state)?;
         for path in folded_paths {
-            tracing::trace!("Folding: Found path {path:?}");
+            tracing::trace!("Folding: Found path {}", path.display());
             if !path.exists() {
                 tracing::trace!("Folding: Creating common directory at {path:?}");
                 std::fs::create_dir_all(path)?;
@@ -341,7 +341,7 @@ fn resolve_repo_config(runtime: &LuaRuntime, args: &Args) -> Result<RepositoryCo
     }
 
     if args.merge_commit && args.rebase {
-        return Err(StrawError::String("The arguments --rebase and --merge-commit are mutually exclusive. Please use only one at a time.".into()));
+        return Err(StrawError::String("The arguments `--rebase` and `--merge-commit` are mutually exclusive. Please use only one at a time.".into()));
     } else if args.rebase {
         repo_config.merge_flavor = Some(MergeFlavor::Rebase);
     } else if args.merge_commit {
