@@ -18,6 +18,9 @@ fn main() -> Result<()> {
     };
 
     #[cfg(debug_assertions)]
+    std::env::set_var("RUST_BACKTRACE", "1");
+
+    #[cfg(debug_assertions)]
     let max_log_level = tracing::Level::TRACE;
     #[cfg(not(debug_assertions))]
     let max_log_level = tracing::Level::INFO;
