@@ -36,7 +36,7 @@ impl LuaRuntime {
         Ok((result, value))
     }
 
-    pub fn reg_func<F, A, R>(
+    pub fn register_func<F, A, R>(
         &self,
         module: &mlua::Table,
         key: impl mlua::IntoLua,
@@ -52,7 +52,7 @@ impl LuaRuntime {
         Ok(function)
     }
 
-    pub fn reg_func_from_lua(
+    pub fn register_func_from_lua(
         &self,
         module: &mlua::Table,
         key: impl mlua::IntoLua,
@@ -76,21 +76,21 @@ impl LuaRuntime {
             paths.set("dotfiles", crate::fs::sanitize_path(dotfiles_dir)?)?;
         }
 
-        self.reg_func(&fs, "create_symlink", crate::lua::fs::create_symlink)?;
+        self.register_func(&fs, "create_symlink", crate::lua::fs::create_symlink)?;
 
-        self.reg_func(&fs, "create_dir", crate::lua::fs::create_dir)?;
-        self.reg_func(&fs, "remove_dir", crate::lua::fs::remove_dir)?;
+        self.register_func(&fs, "create_dir", crate::lua::fs::create_dir)?;
+        self.register_func(&fs, "remove_dir", crate::lua::fs::remove_dir)?;
 
-        self.reg_func(&fs, "remove", crate::lua::fs::remove_file)?;
+        self.register_func(&fs, "remove", crate::lua::fs::remove_file)?;
 
-        self.reg_func(&fs, "read", crate::lua::fs::read_text_file)?;
-        self.reg_func(&fs, "write", crate::lua::fs::write_text_file)?;
+        self.register_func(&fs, "read", crate::lua::fs::read_text_file)?;
+        self.register_func(&fs, "write", crate::lua::fs::write_text_file)?;
 
-        self.reg_func(&fs, "read_bin", crate::lua::fs::read_bin_file)?;
-        self.reg_func(&fs, "write_bin", crate::lua::fs::write_bin_file)?;
+        self.register_func(&fs, "read_bin", crate::lua::fs::read_bin_file)?;
+        self.register_func(&fs, "write_bin", crate::lua::fs::write_bin_file)?;
 
-        self.reg_func(&fs, "exists", crate::lua::fs::exists)?;
-        self.reg_func(&fs, "get_file_type", crate::lua::fs::get_file_type)?;
+        self.register_func(&fs, "exists", crate::lua::fs::exists)?;
+        self.register_func(&fs, "get_file_type", crate::lua::fs::get_file_type)?;
 
         Ok(fs)
     }
@@ -98,12 +98,12 @@ impl LuaRuntime {
     fn populate_git_submodule(&self) -> Result<mlua::Table> {
         let git = crate::lua::utils::get_or_create_sub_module(&self.lua, "git")?;
 
-        self.reg_func(&git, "clone", crate::lua::git::clone)?;
-        self.reg_func(&git, "init", crate::lua::git::init)?;
-        self.reg_func(&git, "commit", crate::lua::git::commit)?;
-        self.reg_func(&git, "status", crate::lua::git::status)?;
-        self.reg_func(&git, "pull", crate::lua::git::pull)?;
-        self.reg_func(&git, "push", crate::lua::git::push)?;
+        self.register_func(&git, "clone", crate::lua::git::clone)?;
+        self.register_func(&git, "init", crate::lua::git::init)?;
+        self.register_func(&git, "commit", crate::lua::git::commit)?;
+        self.register_func(&git, "status", crate::lua::git::status)?;
+        self.register_func(&git, "pull", crate::lua::git::pull)?;
+        self.register_func(&git, "push", crate::lua::git::push)?;
 
         Ok(git)
     }
@@ -111,7 +111,7 @@ impl LuaRuntime {
     fn create_straw_module(&self, args: &Args) -> Result<mlua::Table> {
         let module = crate::lua::utils::get_or_create_module(&self.lua, "straw")?;
 
-        self.reg_func_from_lua(
+        self.register_func_from_lua(
             &module,
             "inspect",
             r#"
@@ -131,7 +131,7 @@ impl LuaRuntime {
             "#,
         )?;
 
-        self.reg_func_from_lua(
+        self.register_func_from_lua(
             &module,
             "find_module",
             r#"
@@ -158,7 +158,7 @@ impl LuaRuntime {
         module.set("user", whoami::fallible::username()?)?;
 
         let straw_args = args.clone();
-        self.reg_func(
+        self.register_func(
             &module,
             "exec",
             move |lua: &mlua::Lua,
