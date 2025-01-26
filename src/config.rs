@@ -3,12 +3,17 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
+// callbacks are registered as string consts, this macro is here to prevent spelling mistakes
+// the name saved in the const is later converted `.to_lowercase()` within `Config::call`
 macro_rules! register_callback {
     ($i: ident) => {
         pub const $i: &str = stringify!($i);
     };
 }
 
+// NOTE: `register_callback!` will convert `CALLBACK_NAME` to
+// pub const CALLBACK_NAME = "CALLBACK_NAME";
+// see macro declaration above for more details
 pub struct LuaCallbacks;
 impl LuaCallbacks {
     register_callback!(ON_APPLY);
