@@ -13,6 +13,8 @@ pub struct CachedPackage {
     pub path: String,
 }
 
+/// Cache is a collection of deployed packages, however it may be extended in the future
+/// to keep other kinds of data.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Cache {
     path: PathBuf,
