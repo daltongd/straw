@@ -28,13 +28,14 @@ pub fn expand_path(path: &str) -> Result<String> {
 }
 
 pub fn sanitize_path(path: &str) -> Result<String> {
-    // there no guarantees about `home_dir` or `path` so we have to perform
-    // the `replace("\\", "/")` on both paths before replacing `home_dir` with `~`
+    // there no guarantees about `home_dir` or `path` so the `replace("\\", "/")`
+    // on both paths before replacing `home_dir` with `~` has to be done as well
     let home_dir = crate::utils::get_home_dir()?.replace("\\", "/");
     Ok(path.replace("\\", "/").replace(&home_dir, "~"))
 }
 
 pub fn path_to_string(path: &Path) -> Result<String> {
+    // sanitize for a good measure
     sanitize_path(&path.display().to_string())
 }
 
@@ -85,7 +86,7 @@ pub fn remove_symlink_if_exists(link_path: &PathBuf, preview: bool) -> Result<()
 }
 
 pub fn display_path(path: impl AsRef<Path>) -> Result<String> {
-    let result = sanitize_path(&path_to_string(path.as_ref())?)?;
+    let result = path_to_string(path.as_ref())?;
     Ok(result)
 }
 
