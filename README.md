@@ -62,13 +62,19 @@ straw clone https://repository.com/your/.dotfiles.git --apply
 To later sync your dotfiles:
 
 ```bash
-straw --sync --apply
+straw sync
 ```
 
-or a shorthand version:
+or:
 
 ```bash
 straw -sa
+```
+
+which stands for:
+
+```bash
+straw sync --sync-repo --apply
 ```
 
 You can also use the `--preview` option to only log out the changes that would be
@@ -76,13 +82,13 @@ applied without applying them (note, the sync command won't happen, it'll only
 check if there are any changes):
 
 ```bash
-straw -sa --preview
+straw sync --preview
 ```
 
 or a shorthand version:
 
 ```bash
-straw -sap
+straw sync -p
 ```
 
 ## Configuration
