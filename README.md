@@ -142,6 +142,20 @@ In the overrides:
   - e.g. `$HOME` on unix
   - you can also us `~` as a home directory on all platforms
 
+### Example git config
+
+```lua
+local straw = require("straw")
+local config = {}
+
+config.remote = "origin"
+config.branch = "main"
+config.merge_flavor = "Rebase"
+config.commit_message = "auto: push changes from " .. straw.hostname
+
+return config
+```
+
 ## Help
 
 ```txt
