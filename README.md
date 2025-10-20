@@ -234,7 +234,6 @@ Done:
 - [x] utility functions in lua library
 - [x] git ssh key selection
 - [x] installing packages / running scripts
-
 - [x] `.dotfiles` path override
 - [x] `target` path override
 - [x] cache deployed symlinks and add `--clear` or a similar command
