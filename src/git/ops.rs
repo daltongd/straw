@@ -10,7 +10,7 @@ fn add_ssh_keys(
     auth: auth_git2::GitAuthenticator,
 ) -> Result<auth_git2::GitAuthenticator> {
     let auth = auth.add_default_ssh_keys();
-    if let Some(ssh_key_path) = &args.ssh_key_path {
+    if let Some(ssh_key_path) = &args.ssh_private_key {
         return Ok(auth.add_ssh_key_from_file(ssh_key_path, None));
     }
     Ok(auth)

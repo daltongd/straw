@@ -12,10 +12,6 @@ use straw::{
 
 fn main() -> Result<()> {
     let mut args = Args::parse();
-    args.ssh_key_path = match args.ssh_key_path {
-        Some(ssh_key_path) => Some(straw::fs::sanitize_path(&ssh_key_path)?),
-        None => None,
-    };
 
     #[cfg(debug_assertions)]
     std::env::set_var("RUST_BACKTRACE", "1");
@@ -62,6 +58,17 @@ fn main() -> Result<()> {
             return Err(e);
         }
     };
+    args.ssh_private_key = args
+        .ssh_private_key
+        .clone()
+        .and_then(|ssh_key: String| straw::fs::sanitize_path(&ssh_key).ok())
+        .or(repo_config
+            .ssh_private_key
+            .clone()
+            .and_then(|ssh_key: String| straw::fs::sanitize_path(&ssh_key).ok()));
+    args.ssh_private_key
+        .clone()
+        .inspect(|ssh_key| tracing::info!("Using ssh private key {:?}", ssh_key.clone()));
 
     // Handle the subcommands
     if let Some(command) = &args.command {

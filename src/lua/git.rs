@@ -29,7 +29,7 @@ function! {
     commit(path: String, message: String) {
         let args = Args::parse();
         let target_path = crate::fs::expand_path(&path)?;
-        crate::git::ops::commit_changes(&args, &PathBuf::from(&target_path), &RepositoryConfig { remote: String::default(), branch: String::default(), merge_flavor: None, commit_message: Some(message) })?;
+        crate::git::ops::commit_changes(&args, &PathBuf::from(&target_path), &RepositoryConfig { remote: String::default(), branch: String::default(), merge_flavor: None, commit_message: Some(message), ssh_private_key: args.ssh_private_key.clone() })?;
     }
 }
 
@@ -52,7 +52,7 @@ function! {
         let mut remote = repository.find_remote(&remote_name).map_err(StrawError::Git)?;
         let head = crate::git::ops::fetch(&args, &repository, &mut remote, &[&branch], 1)?;
 
-        let repo_config = RepositoryConfig { remote: remote_name, branch, merge_flavor: Some(merge_flavor), commit_message: None };
+        let repo_config = RepositoryConfig { remote: remote_name, branch, merge_flavor: Some(merge_flavor), commit_message: None, ssh_private_key: args.ssh_private_key };
         crate::git::merge::merge(&repository, &head, &repo_config)?;
     }
 }
@@ -60,7 +60,7 @@ function! {
 function! {
     push(path: String, remote: String, branch: String) {
         let args = Args::parse();
-        let repo_config = RepositoryConfig { remote, branch, merge_flavor: None, commit_message: None };
+        let repo_config = RepositoryConfig { remote, branch, merge_flavor: None, commit_message: None, ssh_private_key: args.ssh_private_key.clone() };
         crate::git::ops::push_changes(&args, &PathBuf::from(path), &repo_config)?;
     }
 }

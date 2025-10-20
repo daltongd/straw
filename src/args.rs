@@ -80,7 +80,7 @@ pub struct Args {
 
     /// Direct path to the ssh key (by default looks for a standard-named key in the `~/.ssh/` dir)
     #[clap(long, value_name = "PATH")]
-    pub ssh_key_path: Option<String>,
+    pub ssh_private_key: Option<String>,
 
     #[command(subcommand)]
     pub command: Option<Commands>,

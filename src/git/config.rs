@@ -9,6 +9,7 @@ pub struct RepositoryConfig {
     pub branch: String,
     pub merge_flavor: Option<MergeFlavor>,
     pub commit_message: Option<String>,
+    pub ssh_private_key: Option<String>,
 }
 
 impl Default for RepositoryConfig {
@@ -18,6 +19,7 @@ impl Default for RepositoryConfig {
             branch: "main".into(),
             merge_flavor: Some(Default::default()), // we want to default to Rebase
             commit_message: Default::default(),
+            ssh_private_key: Default::default(),
         }
     }
 }
