@@ -38,7 +38,7 @@ Currently the easies and best option is to use `cargo install`. If you don't hav
 the rust toolchain on your system, visit [Install Rust](https://www.rust-lang.org/tools/install).
 
 ``` bash
-cargo install --git https://git.net.dalton.gd/dalton/straw.git
+cargo install --git https://github.com/daltongd/straw.git
 ```
 
 You can also clone this repo and compile it yourself.
