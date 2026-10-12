@@ -250,16 +250,22 @@ fn main() -> Result<()> {
     }
 
     // Sync - Step 2/3: update the local dotfiles
+    let mut update_failed = false;
     if args.sync_repo || args.pull {
         // update git repo
         match straw::git::ops::update_dotfiles(&args, &dotfiles_path, &repo_config) {
             Ok(_) => tracing::info!("Update: .dotfiles updated"),
-            Err(e) => tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}"),
+            Err(e) => {
+                update_failed = true;
+                tracing::error!("Sync: Failed to update the .dotfiles with error: {e:?}")
+            }
         }
     }
 
     // Sync - Step 3/3: push local changes to the repo
-    if args.sync_repo || args.push {
+    if update_failed {
+        tracing::error!("Push: Skipped, the .dotfiles are not up to date with the remote");
+    } else if args.sync_repo || args.push {
         match straw::git::ops::push_changes(&args, &dotfiles_path, &repo_config) {
             Ok(any_changes_pushed) => {
                 if any_changes_pushed {

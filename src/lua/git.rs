@@ -50,7 +50,7 @@ function! {
         let args = Args::parse();
         let repository = git2::Repository::open(path).map_err(StrawError::Git)?;
         let mut remote = repository.find_remote(&remote_name).map_err(StrawError::Git)?;
-        let head = crate::git::ops::fetch(&args, &repository, &mut remote, &[&branch], 1)?;
+        let head = crate::git::ops::fetch(&args, &repository, &mut remote, &[&branch])?;
 
         let repo_config = RepositoryConfig { remote: remote_name, branch, merge_flavor: Some(merge_flavor), commit_message: None, ssh_private_key: args.ssh_private_key };
         crate::git::merge::merge(&repository, &head, &repo_config)?;

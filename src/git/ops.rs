@@ -43,7 +43,6 @@ pub fn fetch<'a>(
     repository: &'a git2::Repository,
     remote: &'a mut git2::Remote,
     refs: &[&str],
-    depth: i32,
 ) -> Result<git2::AnnotatedCommit<'a>> {
     // git sync
     let auth = auth_git2::GitAuthenticator::default();
@@ -76,7 +75,11 @@ pub fn fetch<'a>(
 
     let mut fo = git2::FetchOptions::new();
     fo.remote_callbacks(callback);
-    fo.depth(depth);
+    // NOTE: a shallow fetch cuts the history both sides share, which merging and rebasing need
+    // to find their common base. Repositories made shallow by earlier versions get unshallowed.
+    if repository.is_shallow() {
+        fo.depth(i32::MAX);
+    }
     // Always fetch all tags.
     // Perform a download and also update tips
     fo.download_tags(git2::AutotagOption::All);
@@ -240,7 +243,7 @@ pub fn update_dotfiles(
     }
     let repository = git2::Repository::open(path)?;
     let mut remote = repository.find_remote(&repo_config.remote)?;
-    let head = fetch(args, &repository, &mut remote, &[&repo_config.branch], 1)?;
+    let head = fetch(args, &repository, &mut remote, &[&repo_config.branch])?;
     crate::git::merge::merge(&repository, &head, repo_config)?;
     Ok(())
 }
