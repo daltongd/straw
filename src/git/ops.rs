@@ -1,26 +1,91 @@
 use crate::args::Args;
-use crate::result::Result;
+use crate::result::{Result, StrawError};
 use git2::BranchType;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::OnceLock;
 
 pub use crate::git::status::get_status;
+
+/// Resolves the configured ssh key to an absolute path, ignoring (with a warning) keys that don't
+/// exist so they don't break authentication with the default keys / ssh config.
+fn ssh_key_path(args: &Args) -> Option<String> {
+    let ssh_key = args.ssh_private_key.as_ref()?;
+    let path = crate::fs::expand_path(ssh_key).ok()?;
+    if Path::new(&path).is_file() {
+        Some(path)
+    } else {
+        tracing::warn!("SSH: private key {ssh_key:?} doesn't exist, ignoring it");
+        None
+    }
+}
 
 fn add_ssh_keys(
     args: &Args,
     auth: auth_git2::GitAuthenticator,
 ) -> Result<auth_git2::GitAuthenticator> {
     let auth = auth.add_default_ssh_keys();
-    if let Some(ssh_key_path) = &args.ssh_private_key {
+    if let Some(ssh_key_path) = ssh_key_path(args) {
         return Ok(auth.add_ssh_key_from_file(ssh_key_path, None));
     }
     Ok(auth)
+}
+
+/// Network operations (clone/fetch/push) go through the system `git` when it's available. It uses
+/// OpenSSH, so `~/.ssh/config`, `known_hosts`, ssh-agent and hardware (`*-sk`) keys all work.
+/// libgit2's libssh2 is only a fallback: on Windows it can't negotiate ed25519/ecdsa host keys
+/// ("failed to set hostkey preference") and it doesn't support `*-sk` keys anywhere.
+fn git_cli_available() -> bool {
+    static AVAILABLE: OnceLock<bool> = OnceLock::new();
+    *AVAILABLE.get_or_init(|| {
+        let available = Command::new("git")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .is_ok_and(|status| status.success());
+        if !available {
+            tracing::warn!("Git: `git` executable not found, falling back to libgit2");
+        }
+        available
+    })
+}
+
+fn run_git<I, S>(args: &Args, git_args: I) -> Result<()>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let mut command = Command::new("git");
+    command.args(git_args);
+    if let Some(ssh_key_path) = ssh_key_path(args) {
+        // don't override the user's own ssh command
+        if std::env::var_os("GIT_SSH_COMMAND").is_none() && std::env::var_os("GIT_SSH").is_none()
+        {
+            command.env(
+                "GIT_SSH_COMMAND",
+                format!("ssh -i \"{}\"", ssh_key_path.replace("\\", "/")),
+            );
+        }
+    }
+    tracing::trace!("Git: running {command:?}");
+    let status = command.status()?;
+    if !status.success() {
+        return Err(StrawError::String(format!(
+            "Git: {command:?} failed with {status}"
+        )));
+    }
+    Ok(())
 }
 
 pub fn clone(args: &Args, url: &str, target_path: &Path) -> Result<()> {
     let display_path = crate::fs::path_to_string(target_path)?;
     tracing::info!("Clone: cloning {url} into {display_path}");
 
-    if !args.preview {
+    if !args.preview && git_cli_available() {
+        run_git(args, [OsStr::new("clone"), OsStr::new(url), target_path.as_os_str()])?;
+    } else if !args.preview {
         let auth = auth_git2::GitAuthenticator::default();
         let auth = add_ssh_keys(args, auth)?;
         auth.clone_repo(url, target_path)?;
@@ -44,6 +109,27 @@ pub fn fetch<'a>(
     remote: &'a mut git2::Remote,
     refs: &[&str],
 ) -> Result<git2::AnnotatedCommit<'a>> {
+    if git_cli_available() {
+        let remote_name = remote.name().unwrap_or("origin");
+        tracing::info!("Sync: Fetching {remote_name} for .dotfiles");
+        let mut git_args: Vec<&OsStr> = vec![
+            OsStr::new("--git-dir"),
+            repository.path().as_os_str(),
+            OsStr::new("fetch"),
+            OsStr::new("--tags"),
+        ];
+        // NOTE: see below, merging and rebasing need the full shared history
+        if repository.is_shallow() {
+            git_args.push(OsStr::new("--unshallow"));
+        }
+        git_args.push(OsStr::new(remote_name));
+        git_args.extend(refs.iter().map(OsStr::new));
+        run_git(args, git_args)?;
+
+        let fetch_head = repository.find_reference("FETCH_HEAD")?;
+        return Ok(repository.reference_to_annotated_commit(&fetch_head)?);
+    }
+
     // git sync
     let auth = auth_git2::GitAuthenticator::default();
     let auth = add_ssh_keys(args, auth)?;
@@ -212,17 +298,28 @@ pub fn push_changes(
         return Ok(true);
     }
 
+    let refspec = format!("refs/heads/{}", repo_config.branch);
+    if git_cli_available() {
+        run_git(
+            args,
+            [
+                OsStr::new("--git-dir"),
+                repository.path().as_os_str(),
+                OsStr::new("push"),
+                OsStr::new(&repo_config.remote),
+                OsStr::new(&refspec),
+            ],
+        )?;
+        return Ok(true);
+    }
+
     let auth = auth_git2::GitAuthenticator::default();
     let auth = add_ssh_keys(args, auth)?;
-
-    let git_config = git2::Config::open_default()?;
-    let mut callback = git2::RemoteCallbacks::new();
-    callback.credentials(auth.credentials(&git_config));
 
     auth.push(
         &repository,
         &mut remote,
-        &[&format!("refs/heads/{}", repo_config.branch)],
+        &[&refspec],
     )?;
 
     Ok(true)
@@ -297,28 +394,22 @@ pub fn patch(
             }
         }
 
-        let auth = auth_git2::GitAuthenticator::default();
-        let auth = add_ssh_keys(args, auth)?;
-
-        let git_config = git2::Config::open_default()?;
-        let mut fetch_options = git2::FetchOptions::new();
-        fetch_options.depth(1);
-        let mut remote_callbacks = git2::RemoteCallbacks::new();
-
-        let mut checkout_options = git2::build::CheckoutBuilder::new();
-        checkout_options.path(remote_patch_path);
-
-        let mut repo_builder = git2::build::RepoBuilder::new();
-        repo_builder.with_checkout(checkout_options);
-
-        remote_callbacks.credentials(auth.credentials(&git_config));
-        fetch_options.remote_callbacks(remote_callbacks);
-        repo_builder.fetch_options(fetch_options);
-
         tracing::info!(
             "Patch: cloning '{remote_patch_path_string}' from {url} into '{temp_path_string}'"
         );
-        repo_builder.clone(url, &temp_path)?;
+        if git_cli_available() {
+            run_git(
+                args,
+                [
+                    OsStr::new("clone"),
+                    OsStr::new("--depth=1"),
+                    OsStr::new(url),
+                    temp_path.as_os_str(),
+                ],
+            )?;
+        } else {
+            clone_patch_libgit2(args, url, remote_patch_path, &temp_path)?;
+        }
 
         tracing::info!("Patch: applying patch to '{patch_target_string}'");
         let from = temp_path.join(remote_patch_path);
@@ -337,5 +428,33 @@ pub fn patch(
         }
         std::fs::remove_dir_all(temp_root)?;
     }
+    Ok(())
+}
+
+fn clone_patch_libgit2(
+    args: &Args,
+    url: &str,
+    remote_patch_path: &Path,
+    temp_path: &Path,
+) -> Result<()> {
+    let auth = auth_git2::GitAuthenticator::default();
+    let auth = add_ssh_keys(args, auth)?;
+
+    let git_config = git2::Config::open_default()?;
+    let mut fetch_options = git2::FetchOptions::new();
+    fetch_options.depth(1);
+    let mut remote_callbacks = git2::RemoteCallbacks::new();
+
+    let mut checkout_options = git2::build::CheckoutBuilder::new();
+    checkout_options.path(remote_patch_path);
+
+    let mut repo_builder = git2::build::RepoBuilder::new();
+    repo_builder.with_checkout(checkout_options);
+
+    remote_callbacks.credentials(auth.credentials(&git_config));
+    fetch_options.remote_callbacks(remote_callbacks);
+    repo_builder.fetch_options(fetch_options);
+
+    repo_builder.clone(url, temp_path)?;
     Ok(())
 }
